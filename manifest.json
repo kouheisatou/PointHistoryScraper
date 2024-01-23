@@ -1,8 +1,8 @@
 {
 	"manifest_version": 3,
-	"name": "RakutenPointHistoryDumper",
+	"name": "楽天ポイント履歴一括保存",
 	"version": "1.0.0",
-	"description": "楽天PointClubのポイント実績をcsvにエクスポート",
+	"description": "楽天PointClubのポイント実績をCSV形式で一括保存",
 	"action": {
 		"default_title": "RakutenPointHistoryDumper"
 	},
@@ -18,5 +18,8 @@
 				"content.js"
 			]
 		}
-	]
+	],
+	"icons": {
+		"128": "icon.png"
+	}
 }
