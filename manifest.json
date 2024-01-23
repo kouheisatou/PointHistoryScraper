@@ -4,7 +4,8 @@
 	"version": "1.0.0",
 	"description": "楽天PointClubのポイント実績をCSV形式で一括保存",
 	"action": {
-		"default_title": "RakutenPointHistoryDumper"
+		"default_title": "RakutenPointHistoryDumper",
+		"default_popup": "popup.html"
 	},
 	"permissions": [
 		"tabs"
