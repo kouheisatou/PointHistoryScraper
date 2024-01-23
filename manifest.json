@@ -1,0 +1,22 @@
+{
+	"manifest_version": 3,
+	"name": "RakutenPointHistoryDumper",
+	"version": "1.0.0",
+	"description": "楽天PointClubのポイント実績をcsvにエクスポート",
+	"action": {
+		"default_title": "RakutenPointHistoryDumper"
+	},
+	"permissions": [
+		"tabs"
+	],
+	"content_scripts": [
+		{
+			"matches": [
+				"https://point.rakuten.co.jp/history/*"
+			],
+			"js": [
+				"content.js"
+			]
+		}
+	]
+}
