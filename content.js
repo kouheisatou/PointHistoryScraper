@@ -32,7 +32,7 @@ if (isEnabled) {
 	}
 
 	// download csv
-	var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+	var blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), new TextEncoder().encode(csv)], { type: "text/csv;charset=Shift-JIS" });
 	var downloadUrl = URL.createObjectURL(blob);
 	let currentPage = new URL(window.location.href).searchParams.get("page")
 	if (currentPage == null) {
@@ -51,6 +51,7 @@ if (isEnabled) {
 			window.close()
 		}, 3000);
 	} else {
+		window.alert("全履歴の保存が完了しました")
 		window.close()
 	}
 }
