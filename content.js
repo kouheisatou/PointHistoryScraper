@@ -24,7 +24,11 @@ if (isEnabled) {
 			let title = row.querySelector(".detail").innerText.trim().split("\n")[0].replaceAll(",", "")
 			let action = row.querySelector(".action").innerText.trim().replaceAll("\n", ".").replaceAll(",", "")
 			let point = row.querySelector(".point").innerText.trim().replaceAll("\n", "").replaceAll(",", "")
-			let note = row.querySelector(".note").innerText.trim().replaceAll("\n", "\\n").replaceAll(",", "").replaceAll("\r", "")
+                        let note = row.querySelector(".note").innerText.trim().replaceAll("\r", "").replaceAll(",", "")
+                        note = note.replaceAll('"', '""')
+                        if (note.includes("\n")) {
+                                note = `"${note}"`
+                        }
 
 			csv += date + "," + service + "," + title + "," + action + "," + point + "," + note + "\n"
 		} catch (e) {
