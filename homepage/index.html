@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>楽天ポイント履歴一括保存 | Point History Scraper</title>
+    <meta name="description" content="楽天PointClubのポイント履歴をCSV形式で一括保存する高性能Chrome拡張機能">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="shortcut icon" href="../chrome_extension/icon.png" type="image/png">
+</head>
+<body>
+    <!-- Background particles -->
+    <div id="particles-js"></div>
+    
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <img src="../chrome_extension/icon.png" alt="Logo" class="logo-img">
+                <span class="logo-text">ポイント履歴スクレイパー</span>
+            </div>
+            <div class="nav-links">
+                <a href="#features" class="nav-link">機能</a>
+                <a href="#how-to-use" class="nav-link">使い方</a>
+                <a href="#privacy" class="nav-link">プライバシー</a>
+                <a href="#download" class="nav-link download-btn">ダウンロード</a>
+            </div>
+            <div class="theme-toggle" id="theme-toggle">
+                <div class="toggle-icon">🌙</div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <div class="hero-content">
+                <div class="hero-badge">🚀 公開中 v1.0.1</div>
+                <h1 class="hero-title">
+                    楽天ポイント履歴を
+                    <span class="gradient-text">瞬速で</span>
+                    <span class="gradient-text">一括保存</span>
+                </h1>
+                <p class="hero-description">
+                    楽天PointClubのポイント履歴を効率的にCSV形式で保存。
+                    セキュアで高速、プライバシー重視の無料Chrome拡張機能です。
+                </p>
+                <div class="hero-buttons">
+                    <a href="#download" class="btn-primary">
+                        <span>無料ダウンロード</span>
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke-width="2"/>
+                            <polyline points="7,10 12,15 17,10" stroke-width="2"/>
+                            <line x1="12" y1="15" x2="12" y2="3" stroke-width="2"/>
+                        </svg>
+                    </a>
+                    <a href="#features" class="btn-secondary">
+                        <span>詳細を見る</span>
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <circle cx="12" cy="12" r="10" stroke-width="2"/>
+                            <polyline points="12,6 12,12 16,14" stroke-width="2"/>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <div class="floating-card">
+                    <div class="card-header">
+                        <div class="card-dots">
+                            <span class="dot red"></span>
+                            <span class="dot yellow"></span>
+                            <span class="dot green"></span>
+                        </div>
+                        <div class="card-title">楽天ポイント履歴.csv</div>
+                    </div>
+                    <div class="card-content">
+                        <div class="csv-row header">
+                            <span>date</span>
+                            <span>service</span>
+                            <span>point</span>
+                        </div>
+                        <div class="csv-row">
+                            <span>2024/01/23</span>
+                            <span>楽天市場</span>
+                            <span>+1,000</span>
+                        </div>
+                        <div class="csv-row">
+                            <span>2024/01/22</span>
+                            <span>楽天ブックス</span>
+                            <span>+500</span>
+                        </div>
+                        <div class="csv-row">
+                            <span>2024/01/21</span>
+                            <span>楽天トラベル</span>
+                            <span>+2,500</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">なぜこの拡張機能なのか？</h2>
+                <p class="section-description">楽天ポイント履歴の管理を革新的に改善する強力な機能群</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card" data-aos="fade-up" data-aos-delay="0">
+                    <div class="feature-icon">⚡</div>
+                    <h3 class="feature-title">超高速処理</h3>
+                    <p class="feature-description">最適化されたスクレイピングアルゴリズムで、数千件のポイント履歴も瞬時に処理</p>
+                </div>
+                <div class="feature-card" data-aos="fade-up" data-aos-delay="100">
+                    <div class="feature-icon">🔒</div>
+                    <h3 class="feature-title">完全プライベート</h3>
+                    <p class="feature-description">外部通信一切なし。データはローカルでのみ処理され、プライバシーを完全保護</p>
+                </div>
+                <div class="feature-card" data-aos="fade-up" data-aos-delay="200">
+                    <div class="feature-icon">📊</div>
+                    <h3 class="feature-title">CSV完全対応</h3>
+                    <p class="feature-description">Excel・Numbers・Googleスプレッドシートで即座に開ける標準CSV形式</p>
+                </div>
+                <div class="feature-card" data-aos="fade-up" data-aos-delay="300">
+                    <div class="feature-icon">🤖</div>
+                    <h3 class="feature-title">自動ページング</h3>
+                    <p class="feature-description">全ページを自動的に巡回して、完全な履歴データを一括取得</p>
+                </div>
+                <div class="feature-card" data-aos="fade-up" data-aos-delay="400">
+                    <div class="feature-icon">🎯</div>
+                    <h3 class="feature-title">ワンクリック操作</h3>
+                    <p class="feature-description">複雑な設定不要。ボタン一つで全ての履歴を自動保存開始</p>
+                </div>
+                <div class="feature-card" data-aos="fade-up" data-aos-delay="500">
+                    <div class="feature-icon">🔄</div>
+                    <h3 class="feature-title">セル内改行対応</h3>
+                    <p class="feature-description">note列の改行文字を適切に処理してCSVフォーマットを完全保持</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How to Use Section -->
+    <section id="how-to-use" class="how-to-use">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">使い方はとても簡単</h2>
+                <p class="section-description">3ステップで楽天ポイント履歴を完全取得</p>
+            </div>
+            <div class="steps">
+                <div class="step" data-aos="fade-right" data-aos-delay="0">
+                    <div class="step-number">01</div>
+                    <div class="step-content">
+                        <h3 class="step-title">拡張機能をインストール</h3>
+                        <p class="step-description">Chrome Web Storeまたは開発者モードで拡張機能を追加</p>
+                    </div>
+                    <div class="step-visual">
+                        <div class="browser-mockup">
+                            <div class="browser-bar">
+                                <div class="browser-dots">
+                                    <span></span><span></span><span></span>
+                                </div>
+                            </div>
+                            <div class="browser-content">Chrome拡張機能</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="step" data-aos="fade-left" data-aos-delay="200">
+                    <div class="step-number">02</div>
+                    <div class="step-content">
+                        <h3 class="step-title">楽天PointClubにアクセス</h3>
+                        <p class="step-description">楽天PointClubのポイント履歴ページを開く</p>
+                    </div>
+                    <div class="step-visual">
+                        <div class="website-mockup">
+                            <div class="website-header">楽天PointClub</div>
+                            <div class="website-content">
+                                <div class="point-row">+1,000ポイント</div>
+                                <div class="point-row">+500ポイント</div>
+                                <div class="point-row">+2,500ポイント</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="step" data-aos="fade-right" data-aos-delay="400">
+                    <div class="step-number">03</div>
+                    <div class="step-content">
+                        <h3 class="step-title">ワンクリックで保存開始</h3>
+                        <p class="step-description">拡張機能のアイコンをクリックして「保存開始」ボタンを押すだけ</p>
+                    </div>
+                    <div class="step-visual">
+                        <div class="popup-mockup">
+                            <div class="popup-header">楽天ポイント履歴保存</div>
+                            <button class="popup-button">保存開始</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Privacy Section -->
+    <section id="privacy" class="privacy">
+        <div class="container">
+            <div class="privacy-content">
+                <div class="privacy-text" data-aos="fade-right">
+                    <h2 class="section-title">プライバシーファースト設計</h2>
+                    <p class="section-description">あなたのデータセキュリティを最優先に考えた設計</p>
+                    <div class="privacy-features">
+                        <div class="privacy-feature">
+                            <div class="privacy-icon">🚫</div>
+                            <div class="privacy-info">
+                                <h4>外部通信ゼロ</h4>
+                                <p>インターネット通信は楽天PointClubサイトのみ</p>
+                            </div>
+                        </div>
+                        <div class="privacy-feature">
+                            <div class="privacy-icon">💻</div>
+                            <div class="privacy-info">
+                                <h4>ローカル処理</h4>
+                                <p>全てのデータ処理はお使いのPC内で完結</p>
+                            </div>
+                        </div>
+                        <div class="privacy-feature">
+                            <div class="privacy-icon">🗂️</div>
+                            <div class="privacy-info">
+                                <h4>データ保存なし</h4>
+                                <p>拡張機能内にデータを保存することはありません</p>
+                            </div>
+                        </div>
+                        <div class="privacy-feature">
+                            <div class="privacy-icon">🔐</div>
+                            <div class="privacy-info">
+                                <h4>オープンソース</h4>
+                                <p>ソースコードは全て公開済みで透明性を確保</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="privacy-visual" data-aos="fade-left">
+                    <div class="security-shield">
+                        <div class="shield-outer">
+                            <div class="shield-inner">
+                                <div class="shield-icon">🛡️</div>
+                            </div>
+                        </div>
+                        <div class="security-rings">
+                            <div class="ring ring-1"></div>
+                            <div class="ring ring-2"></div>
+                            <div class="ring ring-3"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="stats">
+        <div class="container">
+            <div class="stats-grid">
+                <div class="stat-item" data-aos="fade-up" data-aos-delay="0">
+                    <div class="stat-number" data-counter="560">0</div>
+                    <div class="stat-label">アクティブユーザー</div>
+                </div>
+                <div class="stat-item" data-aos="fade-up" data-aos-delay="100">
+                    <div class="stat-number">4.3</div>
+                    <div class="stat-label">Chrome Web Store評価</div>
+                </div>
+                <div class="stat-item" data-aos="fade-up" data-aos-delay="200">
+                    <div class="stat-number" data-counter="8">0</div>
+                    <div class="stat-label">KB (軽量サイズ)</div>
+                </div>
+                <div class="stat-item" data-aos="fade-up" data-aos-delay="300">
+                    <div class="stat-number">0</div>
+                    <div class="stat-label">外部通信 (完全プライベート)</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Download Section -->
+    <section id="download" class="download">
+        <div class="container">
+            <div class="download-content">
+                <div class="download-header">
+                    <h2 class="section-title">今すぐ始めよう</h2>
+                    <p class="section-description">楽天ポイント履歴の管理を次のレベルへ</p>
+                </div>
+                <div class="download-options">
+                    <div class="download-card primary-download" data-aos="zoom-in">
+                        <div class="download-icon">📦</div>
+                        <h3 class="download-title">開発者モード</h3>
+                        <p class="download-description">GitHubからクローンして手動インストール</p>
+                        <div class="download-features">
+                            <div class="download-feature">✅ 最新バージョン</div>
+                            <div class="download-feature">✅ ソースコード確認可能</div>
+                            <div class="download-feature">✅ 完全無料</div>
+                        </div>
+                        <a href="https://github.com/kouheisatou/PointHistoryScraper" class="download-btn" target="_blank">
+                            GitHubで入手
+                            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" stroke-width="2"/>
+                            </svg>
+                        </a>
+                    </div>
+                    <div class="download-card" data-aos="zoom-in" data-aos-delay="200">
+                        <div class="download-icon">🏪</div>
+                        <h3 class="download-title">Chrome Web Store</h3>
+                        <p class="download-description">公式ストアからワンクリックインストール</p>
+                        <div class="download-features">
+                            <div class="download-feature">⭐ 4.3/5 評価</div>
+                            <div class="download-feature">👥 560+ ユーザー</div>
+                            <div class="download-feature">✅ 自動更新</div>
+                            <div class="download-feature">✅ 簡単インストール</div>
+                        </div>
+                        <a href="https://chromewebstore.google.com/detail/fdancdeohoaopohmjfnbpddgndlkcaip" class="download-btn" target="_blank">
+                            今すぐダウンロード
+                            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke-width="2"/>
+                                <polyline points="7,10 12,15 17,10" stroke-width="2"/>
+                                <line x1="12" y1="15" x2="12" y2="3" stroke-width="2"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-info">
+                    <div class="footer-logo">
+                        <img src="../chrome_extension/icon.png" alt="Logo" class="logo-img">
+                        <span class="logo-text">楽天ポイント履歴一括保存</span>
+                    </div>
+                    <p class="footer-description">
+                        楽天PointClubのポイント履歴を効率的に管理するための
+                        セキュアで高性能なChrome拡張機能
+                    </p>
+                </div>
+                <div class="footer-links">
+                    <div class="footer-section">
+                        <h4 class="footer-title">リンク</h4>
+                        <a href="#features" class="footer-link">機能</a>
+                        <a href="#how-to-use" class="footer-link">使い方</a>
+                        <a href="#privacy" class="footer-link">プライバシー</a>
+                        <a href="#download" class="footer-link">ダウンロード</a>
+                    </div>
+                    <div class="footer-section">
+                        <h4 class="footer-title">サポート</h4>
+                        <a href="https://github.com/kouheisatou/PointHistoryScraper/issues" class="footer-link" target="_blank">Issue報告</a>
+                        <a href="mailto:satoukouheirenrakuyou@gmail.com" class="footer-link">お問い合わせ</a>
+                        <a href="../chrome_extension/index.html" class="footer-link">プライバシーポリシー</a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 楽天ポイント履歴一括保存. All rights reserved.</p>
+                <p>最終更新: 2024年1月23日</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <script src="script.js"></script>
+</body>
+</html> 
