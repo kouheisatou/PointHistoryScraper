@@ -71,13 +71,6 @@ chrome_extension/
 
 ---
 
-## ライセンス・お問い合わせ
-
-- ライセンス: MIT
-- お問い合わせ: satoukouheirenrakuyou@gmail.com
-
----
-
 ## 更新履歴
 
 - v1.0.2（2025/07/06）: セル内改行対応・安定性向上
