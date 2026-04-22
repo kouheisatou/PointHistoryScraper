@@ -6,14 +6,46 @@
 	<title>楽天PointClub履歴保存</title>
 	<style>
 		body {
-			width: 200px;
-			height: 150px;
+			width: 280px;
+			margin: 12px;
+			font-family: sans-serif;
+		}
+
+		button {
+			width: 100%;
+			margin-top: 8px;
+		}
+
+		.period {
+			margin-top: 12px;
+		}
+
+		.period label {
+			display: block;
+			margin-top: 8px;
+			font-size: 12px;
+		}
+
+		.period input {
+			width: 100%;
+			box-sizing: border-box;
+		}
+
+		p {
+			font-size: 12px;
 		}
 	</style>
 </head>
 
 <body>
-	<button id="exportButton">楽天ポイント履歴<br>保存開始</button>
+	<button id="startScrapeButton">楽天ポイント履歴<br>取得開始</button>
+	<div class="period">
+		<label for="fromDate">エクスポート開始日</label>
+		<input id="fromDate" type="date">
+		<label for="toDate">エクスポート終了日</label>
+		<input id="toDate" type="date">
+	</div>
+	<button id="exportCsvButton">期間指定でCSVエクスポート</button>
 	<script src="popup.js"></script>
 	<p>
 		中断する場合は、タブを閉じてください

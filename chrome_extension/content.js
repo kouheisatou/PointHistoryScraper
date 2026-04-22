@@ -1,61 +1,95 @@
-function getCurrentDate() {
-	var today = new Date();
-	var year = today.getFullYear();
-	var month = (today.getMonth() + 1).toString().padStart(2, '0');
-	var day = today.getDate().toString().padStart(2, '0');
-	return year + month + day;
+const STORAGE_KEY = "rakutenPointHistoryRows";
+const COLUMNS = ["date", "service", "title", "action", "point", "note"];
+
+function getStorageRows() {
+	return new Promise((resolve) => {
+		chrome.storage.local.get([STORAGE_KEY], (result) => {
+			resolve(Array.isArray(result[STORAGE_KEY]) ? result[STORAGE_KEY] : []);
+		});
+	});
 }
 
+function setStorageRows(rows) {
+	return new Promise((resolve) => {
+		chrome.storage.local.set({ [STORAGE_KEY]: rows }, resolve);
+	});
+}
 
-let isEnabled = new URL(window.location.href).searchParams.get("export") == "1"
-if (isEnabled) {
+function buildRowKey(row) {
+	return COLUMNS.map((column) => row[column] || "").join("\u0001");
+}
 
-	var csv = "date,service,title,action,point,note\n"
+function normalizeText(value) {
+	return String(value || "").replace(/\r/g, "").trim();
+}
 
-	var pagination = document.querySelector('.pagination');
-	var nextButton = pagination.children[pagination.children.length - 1]
+function extractRowsFromPage() {
+	const tableBody = document.querySelector(".history-table tbody");
+	if (!tableBody) return [];
 
-	var tableBodyContent = document.querySelector('.history-table tbody')
-	for (var i = 0; i < tableBodyContent.children.length; i++) {
-		var row = tableBodyContent.children[i]
+	const rows = [];
+	for (let i = 0; i < tableBody.children.length; i++) {
+		const row = tableBody.children[i];
 		try {
-			let date = row.querySelector(".date").innerText.replaceAll("\n", "/").replaceAll(",", "")
-			let service = row.querySelector(".service").innerText.trim().replaceAll("\n", " ").replaceAll(",", "")
-			let title = row.querySelector(".detail").innerText.trim().split("\n")[0].replaceAll(",", "")
-			let action = row.querySelector(".action").innerText.trim().replaceAll("\n", ".").replaceAll(",", "")
-			let point = row.querySelector(".point").innerText.trim().replaceAll("\n", "").replaceAll(",", "")
-                        let note = row.querySelector(".note").innerText.trim().replaceAll("\r", "").replaceAll(",", "")
-                        note = note.replaceAll('"', '""')
-                        if (note.includes("\n")) {
-                                note = `"${note}"`
-                        }
-
-			csv += date + "," + service + "," + title + "," + action + "," + point + "," + note + "\n"
+			const date = normalizeText(row.querySelector(".date").innerText).replace(/\n/g, "/");
+			const service = normalizeText(row.querySelector(".service").innerText).replace(/\n/g, " ");
+			const title = normalizeText(row.querySelector(".detail").innerText).split("\n")[0];
+			const action = normalizeText(row.querySelector(".action").innerText).replace(/\n/g, ".");
+			const point = normalizeText(row.querySelector(".point").innerText).replace(/\n/g, "");
+			const note = normalizeText(row.querySelector(".note").innerText);
+			rows.push({ date, service, title, action, point, note });
 		} catch (e) {
 		}
 	}
+	return rows;
+}
 
-	// download csv
-	var blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), new TextEncoder().encode(csv)], { type: "text/csv;charset=Shift-JIS" });
-	var downloadUrl = URL.createObjectURL(blob);
-	let currentPage = new URL(window.location.href).searchParams.get("page")
-	if (currentPage == null) {
-		currentPage = "1"
+function getNextPageUrl() {
+	const pagination = document.querySelector(".pagination");
+	if (!pagination || pagination.children.length === 0) return null;
+	const nextButton = pagination.children[pagination.children.length - 1];
+	if (!nextButton || !nextButton.innerText || !nextButton.innerText.includes("NEXT")) return null;
+	const anchor = nextButton.querySelector("a");
+	if (!anchor || !anchor.href) return null;
+	const url = new URL(anchor.href);
+	url.searchParams.set("scrape", "1");
+	url.hash = "point_history";
+	return url.toString();
+}
+
+async function collectHistory() {
+	const existingRows = await getStorageRows();
+	const mergedRows = [...existingRows];
+	const keySet = new Set(existingRows.map(buildRowKey));
+	const currentPageRows = extractRowsFromPage();
+	let addedCount = 0;
+
+	currentPageRows.forEach((row) => {
+		const key = buildRowKey(row);
+		if (keySet.has(key)) return;
+		keySet.add(key);
+		mergedRows.push(row);
+		addedCount += 1;
+	});
+
+	if (addedCount > 0) {
+		await setStorageRows(mergedRows);
 	}
-	let link = document.createElement("a")
-	link.href = downloadUrl
-	link.download = "rakuten-point-history_" + getCurrentDate() + "_" + currentPage + ".csv"
-	link.click()
 
-	// open next page in new tab
-	if (nextButton.innerText == "NEXT") {
-		var nextUrl = nextButton.querySelector("a").href.replace("#point_history", "") + "&export=1#point_history"
+	const nextPageUrl = getNextPageUrl();
+	if (nextPageUrl) {
 		setTimeout(() => {
-			window.open(nextUrl)
-			window.close()
+			window.open(nextPageUrl);
+			window.close();
 		}, 3000);
-	} else {
-		window.alert("全履歴の保存が完了しました")
-		window.close()
+		return;
 	}
+
+	window.alert(`履歴取得が完了しました（新規追加 ${addedCount} 件）`);
+	window.close();
+}
+
+const isScrapeEnabled = new URL(window.location.href).searchParams.get("scrape") === "1";
+if (isScrapeEnabled) {
+	collectHistory();
 }
