@@ -27,24 +27,6 @@
 </section>
 
 <section class="block dashboard">
-<h2>今年</h2>
-<div class="metrics cols-3">
-<div class="metric accent-green">
-<div class="metric-label">獲得</div>
-<div id="metricYearGain" class="metric-value">-</div>
-</div>
-<div class="metric accent-blue">
-<div class="metric-label">チャージ</div>
-<div id="metricYearCharge" class="metric-value">-</div>
-</div>
-<div class="metric accent-red">
-<div class="metric-label">利用</div>
-<div id="metricYearUsed" class="metric-value">-</div>
-</div>
-</div>
-</section>
-
-<section class="block dashboard">
 <h2>全期間</h2>
 <div class="metrics cols-3">
 <div class="metric accent-green">
@@ -76,6 +58,24 @@
 </div>
 </section>
 
+<section class="block dashboard">
+<h2>今年</h2>
+<div class="metrics cols-3">
+<div class="metric accent-green">
+<div class="metric-label">獲得</div>
+<div id="metricYearGain" class="metric-value">-</div>
+</div>
+<div class="metric accent-blue">
+<div class="metric-label">チャージ</div>
+<div id="metricYearCharge" class="metric-value">-</div>
+</div>
+<div class="metric accent-red">
+<div class="metric-label">利用</div>
+<div id="metricYearUsed" class="metric-value">-</div>
+</div>
+</div>
+</section>
+
 <section class="block chart-section">
 <div class="chart-header">
 <button id="monthlyPrev" class="nav-btn" type="button">&lt;</button>
@@ -83,15 +83,6 @@
 <button id="monthlyNext" class="nav-btn" type="button">&gt;</button>
 </div>
 <canvas id="chartMonthly"></canvas>
-</section>
-
-<section class="block chart-section">
-<div class="chart-header">
-<button id="dailyPrev" class="nav-btn" type="button">&lt;</button>
-<h2 id="dailyTitle">日別推移</h2>
-<button id="dailyNext" class="nav-btn" type="button">&gt;</button>
-</div>
-<canvas id="chartDaily"></canvas>
 </section>
 
 <section class="block chart-section">
@@ -111,6 +102,8 @@
 <label for="toDate">終了日</label>
 <input id="toDate" type="date">
 </div>
+<div id="yearShortcuts" class="year-shortcuts"></div>
+<div id="serviceShortcuts" class="year-shortcuts"></div>
 <div class="buttons">
 <button id="exportCsvButton" type="button" class="primary">CSVエクスポート</button>
 </div>

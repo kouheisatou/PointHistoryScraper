@@ -117,11 +117,9 @@ let totalGain = 0, totalCharge = 0, totalUsed = 0, totalInterest = 0;
 let yearGain = 0, yearCharge = 0, yearUsed = 0;
 const cy = String(new Date().getFullYear());
 const monthlyGain = {}, monthlyCharge = {}, monthlyUsed = {};
-const dailyGain = {}, dailyCharge = {}, dailyUsed = {};
 const serviceGain = {};
 
 rows.forEach((row) => {
-const d = parseDateFromRow(row.date);
 const month = parseMonthFromRow(row.date);
 const point = parsePointValue(row.point);
 const type = classifyAction(row.action);
@@ -135,18 +133,15 @@ if (type === "gain") {
 totalGain += point;
 if (rowYear === cy) yearGain += point;
 if (month) monthlyGain[month] = (monthlyGain[month] || 0) + point;
-if (d) dailyGain[d] = (dailyGain[d] || 0) + point;
 serviceGain[service] = (serviceGain[service] || 0) + point;
 } else if (type === "charge") {
 totalCharge += point;
 if (rowYear === cy) yearCharge += point;
 if (month) monthlyCharge[month] = (monthlyCharge[month] || 0) + point;
-if (d) dailyCharge[d] = (dailyCharge[d] || 0) + point;
 } else if (type === "used") {
 totalUsed += point;
 if (rowYear === cy) yearUsed += point;
 if (month) monthlyUsed[month] = (monthlyUsed[month] || 0) + point;
-if (d) dailyUsed[d] = (dailyUsed[d] || 0) + point;
 }
 });
 
@@ -160,18 +155,16 @@ yearGain, yearCharge, yearUsed,
 avgGain: Math.round(totalGain / numMonths),
 avgUsed: Math.round(totalUsed / numMonths),
 sortedMonths, monthlyGain, monthlyCharge, monthlyUsed,
-dailyGain, dailyCharge, dailyUsed, serviceGain,
+serviceGain,
 };
 }
 
 let lastStats = null;
-let monthlyYear = null; // 表示中の年 (e.g. "2026")
-let dailyMonth = null;  // 表示中の月 (e.g. "2026/04")
+let monthlyPage = 0; // 0=最新12ヶ月, -1=その前12ヶ月, ...
 
 function drawAllCharts() {
 if (!lastStats) return;
 drawMonthlyChart();
-drawDailyChart();
 drawServiceDonut();
 }
 
@@ -179,11 +172,7 @@ function updateDashboard(rows) {
 const s = computeStats(rows);
 lastStats = s;
 // 初期表示: 最新の年・月
-if (s.sortedMonths.length > 0) {
-const latest = s.sortedMonths[s.sortedMonths.length - 1];
-if (!monthlyYear) monthlyYear = latest.split("/")[0];
-if (!dailyMonth) dailyMonth = latest;
-}
+monthlyPage = 0;
 document.getElementById("metricYearGain").textContent = "+" + fmt(s.yearGain);
 document.getElementById("metricYearCharge").textContent = fmt(s.yearCharge);
 document.getElementById("metricYearUsed").textContent = "-" + fmt(s.yearUsed);
@@ -257,23 +246,11 @@ ctx.scale(dpr, dpr);
 return { ctx, w, h };
 }
 
-function niceNum(val, round) {
-if (val <= 0) return 1;
-const exp = Math.floor(Math.log10(val));
-const frac = val / Math.pow(10, exp);
-let nice;
-if (round) {
-if (frac <= 1) nice = 1;
-else if (frac <= 2) nice = 2;
-else if (frac <= 5) nice = 5;
-else nice = 10;
-} else {
-if (frac <= 1) nice = 1;
-else if (frac <= 2) nice = 2;
-else if (frac <= 5) nice = 5;
-else nice = 10;
-}
-return nice * Math.pow(10, exp);
+// 1000,2000,3000,...,10000,20000,30000,...,100000,200000,... のようなキリの良い値に切り上げ
+function niceCeil(val) {
+if (val <= 0) return 1000;
+const exp = Math.pow(10, Math.floor(Math.log10(val)));
+return Math.ceil(val / exp) * exp;
 }
 
 function measureLeftPad(ctx, maxVal) {
@@ -293,12 +270,12 @@ return;
 const rawMax = Math.max(1,
 ...series.flatMap((sr) => labels.map((l) => sr.data[l] || 0)),
 ...labels.map((l) => cumData[l] || 0));
-const maxVal = niceNum(rawMax, false);
-const niceStep = niceNum(maxVal / 4, true);
+const maxVal = niceCeil(rawMax);
+const niceStep = niceCeil(maxVal / 4);
 const tickCount = Math.max(Math.round(maxVal / niceStep), 1);
 
 const leftPad = measureLeftPad(ctx, maxVal);
-const pad = { top: 22, right: 6, bottom: 34, left: leftPad };
+const pad = { top: 22, right: 6, bottom: 44, left: leftPad };
 const cw = w - pad.left - pad.right;
 const ch = h - pad.top - pad.bottom;
 const colW = cw / labels.length;
@@ -324,7 +301,9 @@ if (cumData[l] != null) cumRunning = cumData[l];
 const gx = pad.left + colW * li + (colW - groupW) / 2;
 const parts = series.map((sr, si) => `${seriesNames[si]}: ${fmt(sr.data[l] || 0)}`);
 parts.push(`累計獲得: ${fmt(cumRunning)}`);
-hitAreas.push({ x: pad.left + colW * li, y: pad.top, w: colW, h: ch, text: xLabelFn(l) + "\n" + parts.join("\n") });
+const xlTip = xLabelFn(l);
+const tipLabel = Array.isArray(xlTip) ? xlTip.join("") : xlTip;
+hitAreas.push({ x: pad.left + colW * li, y: pad.top, w: colW, h: ch, text: tipLabel + "\n" + parts.join("\n") });
 series.forEach((sr, si) => {
 const v = sr.data[l] || 0;
 if (v <= 0) return;
@@ -358,7 +337,14 @@ ctx.beginPath(); ctx.arc(pt.x, y, 3, 0, Math.PI * 2); ctx.fill();
 // X labels
 ctx.fillStyle = "#999"; ctx.font = "9px sans-serif"; ctx.textAlign = "center";
 labels.forEach((l, i) => {
-ctx.fillText(xLabelFn(l), pad.left + colW * i + colW / 2, h - pad.bottom + 14);
+const xl = xLabelFn(l);
+const cx = pad.left + colW * i + colW / 2;
+if (Array.isArray(xl)) {
+ctx.fillText(xl[0], cx, h - pad.bottom + 12);
+ctx.fillText(xl[1], cx, h - pad.bottom + 24);
+} else {
+ctx.fillText(xl, cx, h - pad.bottom + 14);
+}
 });
 
 // Legend
@@ -387,141 +373,85 @@ return [{ data: g, color: COLOR_GAIN }, { data: c, color: COLOR_CHARGE }, { data
 }
 
 // 表示中の年の1月から累計獲得を計算（年ごとに0リセット）
-function buildMonthlyCumGain(stats, year) {
+// 12ヶ月ウィンドウのラベル生成 (yyyy/MM)
+function buildMonthlyWindow(page) {
+const now = new Date();
+const endY = now.getFullYear();
+const endM = now.getMonth(); // 0-based
+const labels = [];
+for (let i = 11; i >= 0; i--) {
+const d = new Date(endY, endM - i + page, 1);
+const y = d.getFullYear();
+const m = String(d.getMonth() + 1).padStart(2, "0");
+labels.push(`${y}/${m}`);
+}
+return labels;
+}
+
+function buildMonthlyCumGain(stats, labels) {
 const cum = {};
 let total = 0;
-stats.sortedMonths.forEach((m) => {
-if (m.split("/")[0] === year) {
+labels.forEach((m) => {
 total += (stats.monthlyGain[m] || 0);
 cum[m] = total;
-}
 });
 return cum;
 }
 
-// 表示中の月の1日から累計獲得を計算（月ごとに0リセット）
-function buildDailyCumGain(stats, yearMonth) {
-const [y, m] = yearMonth.split("/");
-const prefix = `${y}-${m}-`;
-const cum = {};
-let total = 0;
-const days = Object.keys(stats.dailyGain).filter((d) => d.startsWith(prefix)).sort();
-days.forEach((d) => {
-total += (stats.dailyGain[d] || 0);
-cum[d] = total;
-});
-return cum;
+function monthlyWindowTitle(labels) {
+const first = labels[0];
+const last = labels[labels.length - 1];
+const [fy, fm] = first.split("/");
+const [ly, lm] = last.split("/");
+return `${fy}/${parseInt(fm, 10)} 〜 ${ly}/${parseInt(lm, 10)}`;
 }
 
-function getYearsFromMonths(sortedMonths) {
-const years = new Set();
-sortedMonths.forEach((m) => years.add(m.split("/")[0]));
-return [...years].sort();
+function getMinPage(stats) {
+if (stats.sortedMonths.length === 0) return 0;
+const earliest = stats.sortedMonths[0];
+const [ey, em] = earliest.split("/").map(Number);
+const now = new Date();
+const diffMonths = (now.getFullYear() - ey) * 12 + now.getMonth() - (em - 1);
+return -Math.max(diffMonths - 11, 0);
 }
 
-function getAvailableMonths(stats) {
-const months = new Set();
-[stats.dailyGain, stats.dailyCharge, stats.dailyUsed].forEach((data) => {
-Object.keys(data).forEach((d) => {
-const parts = d.split("-");
-months.add(`${parts[0]}/${parts[1]}`);
-});
-});
-return [...months].sort();
-}
-
-function getDaysInMonth(yearMonth) {
-const [y, m] = yearMonth.split("/").map(Number);
-const days = [];
-const daysInMonth = new Date(y, m, 0).getDate();
-for (let d = 1; d <= daysInMonth; d++) {
-days.push(`${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
-}
-return days;
-}
-
-// ── Monthly chart (by year) ──
+// ── Monthly chart ──
 
 function drawMonthlyChart() {
 if (!lastStats) return;
 const stats = lastStats;
-const years = getYearsFromMonths(stats.sortedMonths);
-if (years.length === 0) { monthlyYear = null; return; }
-if (!monthlyYear || !years.includes(monthlyYear)) monthlyYear = years[years.length - 1];
+const minPage = getMinPage(stats);
 
-const yi = years.indexOf(monthlyYear);
-document.getElementById("monthlyPrev").disabled = (yi <= 0);
-document.getElementById("monthlyNext").disabled = (yi >= years.length - 1);
-document.getElementById("monthlyTitle").textContent = `月別推移 ${monthlyYear}年`;
+document.getElementById("monthlyPrev").disabled = (monthlyPage <= minPage);
+document.getElementById("monthlyNext").disabled = (monthlyPage >= 0);
 
-const months = stats.sortedMonths.filter((m) => m.startsWith(monthlyYear + "/"));
-const cumGain = buildMonthlyCumGain(stats, monthlyYear);
+const labels = buildMonthlyWindow(monthlyPage);
+document.getElementById("monthlyTitle").textContent = monthlyWindowTitle(labels);
+
+const cumGain = buildMonthlyCumGain(stats, labels);
 
 const canvas = document.getElementById("chartMonthly");
 const r = setupCanvas(canvas, 0.55);
 if (!r) return;
-drawBarChartWithLine(canvas, r.ctx, r.w, r.h, months,
+drawBarChartWithLine(canvas, r.ctx, r.w, r.h, labels,
 makeSeries(stats.monthlyGain, stats.monthlyCharge, stats.monthlyUsed),
-LEGEND, (m) => parseInt(m.split("/")[1], 10) + "月", cumGain);
+LEGEND, (m) => { const [y, mo] = m.split("/"); return [y + "年", parseInt(mo, 10) + "月"]; }, cumGain);
 }
 
 document.getElementById("monthlyPrev").addEventListener("click", () => {
 if (!lastStats) return;
-const years = getYearsFromMonths(lastStats.sortedMonths);
-const yi = years.indexOf(monthlyYear);
-if (yi > 0) { monthlyYear = years[yi - 1]; drawMonthlyChart(); }
+const minPage = getMinPage(lastStats);
+if (monthlyPage > minPage) { monthlyPage--; drawMonthlyChart(); }
 });
 document.getElementById("monthlyNext").addEventListener("click", () => {
-if (!lastStats) return;
-const years = getYearsFromMonths(lastStats.sortedMonths);
-const yi = years.indexOf(monthlyYear);
-if (yi < years.length - 1) { monthlyYear = years[yi + 1]; drawMonthlyChart(); }
-});
-
-// ── Daily chart (by month) ──
-
-function drawDailyChart() {
-if (!lastStats) return;
-const stats = lastStats;
-const availMonths = getAvailableMonths(stats);
-if (availMonths.length === 0) { dailyMonth = null; return; }
-if (!dailyMonth || !availMonths.includes(dailyMonth)) dailyMonth = availMonths[availMonths.length - 1];
-
-const mi = availMonths.indexOf(dailyMonth);
-document.getElementById("dailyPrev").disabled = (mi <= 0);
-document.getElementById("dailyNext").disabled = (mi >= availMonths.length - 1);
-const [y, m] = dailyMonth.split("/");
-document.getElementById("dailyTitle").textContent = `日別推移 ${y}年${parseInt(m, 10)}月`;
-
-const days = getDaysInMonth(dailyMonth);
-const cumGain = buildDailyCumGain(stats, dailyMonth);
-
-const canvas = document.getElementById("chartDaily");
-const r = setupCanvas(canvas, 0.55);
-if (!r) return;
-drawBarChartWithLine(canvas, r.ctx, r.w, r.h, days,
-makeSeries(stats.dailyGain, stats.dailyCharge, stats.dailyUsed),
-LEGEND, (d) => String(parseInt(d.split("-")[2], 10)), cumGain);
-}
-
-document.getElementById("dailyPrev").addEventListener("click", () => {
-if (!lastStats) return;
-const availMonths = getAvailableMonths(lastStats);
-const mi = availMonths.indexOf(dailyMonth);
-if (mi > 0) { dailyMonth = availMonths[mi - 1]; drawDailyChart(); }
-});
-document.getElementById("dailyNext").addEventListener("click", () => {
-if (!lastStats) return;
-const availMonths = getAvailableMonths(lastStats);
-const mi = availMonths.indexOf(dailyMonth);
-if (mi < availMonths.length - 1) { dailyMonth = availMonths[mi + 1]; drawDailyChart(); }
+if (monthlyPage < 0) { monthlyPage++; drawMonthlyChart(); }
 });
 
 // ── Service donut ──
 
 function drawServiceDonut() {
 if (!lastStats) return;
-const r = setupCanvas(document.getElementById("chartService"), 0.6);
+const r = setupCanvas(document.getElementById("chartService"), 0.7);
 if (!r) return;
 const { ctx, w, h } = r;
 
@@ -537,7 +467,7 @@ const topN = entries.slice(0, 8);
 const otherSum = entries.slice(8).reduce((s, e) => s + e[1], 0);
 if (otherSum > 0) topN.push(["その他", otherSum]);
 
-const cx = w * 0.3;
+const cx = w * 0.26;
 const cy = h / 2;
 const radius = Math.min(cx - 8, cy - 8);
 const inner = radius * 0.55;
@@ -561,7 +491,7 @@ ctx.fillText(fmt(total), cx, cy - 6);
 ctx.font = "10px sans-serif"; ctx.fillStyle = "#888";
 ctx.fillText("獲得合計", cx, cy + 10);
 
-const lx = w * 0.58;
+const lx = w * 0.26 + radius + w * 0.087;
 const lineH = Math.min(22, (h - 16) / topN.length);
 ctx.textAlign = "left"; ctx.textBaseline = "top";
 topN.forEach(([name, val], i) => {
@@ -598,7 +528,9 @@ body.appendChild(tr);
 
 /* ── Filters ── */
 
-function applyDateFilter() {
+let activeServiceFilter = null;
+
+function applyFilter() {
 const from = document.getElementById("fromDate").value || null;
 const to = document.getElementById("toDate").value || null;
 if (from && to && from > to) return;
@@ -607,6 +539,7 @@ const d = parseDateFromRow(row.date);
 if (!d) return false;
 if (from && d < from) return false;
 if (to && d > to) return false;
+if (activeServiceFilter && row.service !== activeServiceFilter) return false;
 return true;
 });
 renderHistoryTable(filteredRows);
@@ -617,6 +550,70 @@ const dates = allRows.map((r) => parseDateFromRow(r.date)).filter(Boolean).sort(
 if (dates.length === 0) return;
 document.getElementById("fromDate").value = dates[0];
 document.getElementById("toDate").value = dates[dates.length - 1];
+buildYearShortcuts();
+buildServiceShortcuts();
+}
+
+function buildYearShortcuts() {
+const container = document.getElementById("yearShortcuts");
+container.innerHTML = "";
+const now = new Date();
+const cy = now.getFullYear();
+const cm = now.getMonth(); // 0-based
+
+const items = [];
+// 3年前から今年まで
+for (let y = cy - 3; y <= cy; y++) {
+items.push({ label: String(y), from: `${y}-01-01`, to: `${y}-12-31` });
+}
+// 3ヶ月前から今月まで
+for (let i = 3; i >= 0; i--) {
+const d = new Date(cy, cm - i, 1);
+const y = d.getFullYear();
+const m = d.getMonth() + 1;
+const ms = String(m).padStart(2, "0");
+const lastDay = new Date(y, m, 0).getDate();
+items.push({ label: `${y}年${m}月`, from: `${y}-${ms}-01`, to: `${y}-${ms}-${String(lastDay).padStart(2, "0")}` });
+}
+
+items.forEach((item) => {
+const btn = document.createElement("button");
+btn.type = "button";
+btn.textContent = item.label;
+btn.addEventListener("click", () => {
+document.getElementById("fromDate").value = item.from;
+document.getElementById("toDate").value = item.to;
+container.querySelectorAll("button").forEach((b) => b.classList.remove("active"));
+btn.classList.add("active");
+applyFilter();
+});
+container.appendChild(btn);
+});
+}
+
+function buildServiceShortcuts() {
+const container = document.getElementById("serviceShortcuts");
+container.innerHTML = "";
+const services = new Set(allRows.map((r) => r.service).filter(Boolean));
+const sorted = [...services].sort();
+
+sorted.forEach((svc) => {
+const btn = document.createElement("button");
+btn.type = "button";
+btn.textContent = svc;
+btn.addEventListener("click", () => {
+if (activeServiceFilter === svc) {
+activeServiceFilter = null;
+btn.classList.remove("active");
+} else {
+activeServiceFilter = svc;
+container.querySelectorAll("button").forEach((b) => b.classList.remove("active"));
+btn.classList.add("active");
+}
+applyFilter();
+});
+container.appendChild(btn);
+});
 }
 
 /* ── CSV Import ── */
@@ -724,8 +721,14 @@ if (from && to && from > to) { window.alert("開始日は終了日以前を指�
 if (filteredRows.length === 0) { window.alert("エクスポートできる履歴がありません"); return; }
 downloadCsv(rowsToCsv(filteredRows), from, to);
 });
-document.getElementById("fromDate").addEventListener("change", applyDateFilter);
-document.getElementById("toDate").addEventListener("change", applyDateFilter);
+document.getElementById("fromDate").addEventListener("change", () => {
+document.getElementById("yearShortcuts").querySelectorAll("button").forEach((b) => b.classList.remove("active"));
+applyFilter();
+});
+document.getElementById("toDate").addEventListener("change", () => {
+document.getElementById("yearShortcuts").querySelectorAll("button").forEach((b) => b.classList.remove("active"));
+applyFilter();
+});
 
 const importInput = document.getElementById("importCsvInput");
 document.getElementById("importCsvButton").addEventListener("click", () => { importInput.value = ""; importInput.click(); });
