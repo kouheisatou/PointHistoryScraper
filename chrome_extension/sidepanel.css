@@ -257,6 +257,11 @@ cursor: default;
 background: none;
 }
 
+#chartMonthly {
+display: block;
+cursor: pointer;
+}
+
 .chart-section canvas {
 display: block;
 }

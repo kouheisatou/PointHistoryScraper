@@ -110,6 +110,29 @@ document.getElementById("tab-" + tab.dataset.tab).classList.add("active");
 });
 });
 
+function switchTab(name) {
+document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+document.querySelectorAll(".tab-content").forEach((c) => c.classList.remove("active"));
+const btn = document.querySelector(`.tab[data-tab="${name}"]`);
+if (btn) btn.classList.add("active");
+document.getElementById("tab-" + name)?.classList.add("active");
+}
+
+// 月別グラフクリック → 履歴タブでその月を表示
+function navigateToMonth(label) {
+const [y, m] = label.split("/");
+const mi = parseInt(m, 10);
+const ms = String(mi).padStart(2, "0");
+const lastDay = new Date(parseInt(y, 10), mi, 0).getDate();
+document.getElementById("fromDate").value = `${y}-${ms}-01`;
+document.getElementById("toDate").value = `${y}-${ms}-${String(lastDay).padStart(2, "0")}`;
+document.getElementById("yearShortcuts").querySelectorAll("button").forEach((b) => b.classList.remove("active"));
+activeServiceFilter = null;
+document.getElementById("serviceShortcuts").querySelectorAll("button").forEach((b) => b.classList.remove("active"));
+applyFilter();
+switchTab("history");
+}
+
 /* ── Dashboard ── */
 
 function computeStats(rows) {
@@ -225,6 +248,14 @@ tooltipEl.classList.add("hidden");
 }
 });
 canvas.addEventListener("mouseleave", () => tooltipEl.classList.add("hidden"));
+canvas.addEventListener("click", (e) => {
+const rect = canvas.getBoundingClientRect();
+const mx = e.clientX - rect.left;
+const my = e.clientY - rect.top;
+const areas = chartHitAreas.get(canvas) || [];
+const hit = areas.find((a) => mx >= a.x && mx <= a.x + a.w && my >= a.y && my <= a.y + a.h);
+if (hit && hit.label && hit.onBarClick) hit.onBarClick(hit.label);
+});
 }
 
 function setupCanvas(canvas, aspect) {
@@ -259,7 +290,7 @@ return Math.ceil(ctx.measureText(fmt(maxVal)).width) + 10;
 }
 
 // cumData: { label: cumulativeValue } - 累計獲得の折れ線データ
-function drawBarChartWithLine(canvas, ctx, w, h, labels, series, legendItems, xLabelFn, cumData) {
+function drawBarChartWithLine(canvas, ctx, w, h, labels, series, legendItems, xLabelFn, cumData, onBarClick) {
 const hitAreas = [];
 if (labels.length === 0) {
 ctx.fillStyle = "#aaa"; ctx.font = "12px sans-serif"; ctx.textAlign = "center";
@@ -303,7 +334,7 @@ const parts = series.map((sr, si) => `${seriesNames[si]}: ${fmt(sr.data[l] || 0)
 parts.push(`累計獲得: ${fmt(cumRunning)}`);
 const xlTip = xLabelFn(l);
 const tipLabel = Array.isArray(xlTip) ? xlTip.join("") : xlTip;
-hitAreas.push({ x: pad.left + colW * li, y: pad.top, w: colW, h: ch, text: tipLabel + "\n" + parts.join("\n") });
+hitAreas.push({ x: pad.left + colW * li, y: pad.top, w: colW, h: ch, text: tipLabel + "\n" + parts.join("\n"), label: l, onBarClick });
 series.forEach((sr, si) => {
 const v = sr.data[l] || 0;
 if (v <= 0) return;
@@ -435,7 +466,7 @@ const r = setupCanvas(canvas, 0.55);
 if (!r) return;
 drawBarChartWithLine(canvas, r.ctx, r.w, r.h, labels,
 makeSeries(stats.monthlyGain, stats.monthlyCharge, stats.monthlyUsed),
-LEGEND, (m) => { const [y, mo] = m.split("/"); return [y + "年", parseInt(mo, 10) + "月"]; }, cumGain);
+LEGEND, (m) => { const [y, mo] = m.split("/"); return [y + "年", parseInt(mo, 10) + "月"]; }, cumGain, navigateToMonth);
 }
 
 document.getElementById("monthlyPrev").addEventListener("click", () => {
