@@ -27,19 +27,19 @@
 </section>
 
 <section class="block dashboard">
-<h2>今月</h2>
+<h2>今年</h2>
 <div class="metrics cols-3">
 <div class="metric accent-green">
 <div class="metric-label">獲得</div>
-<div id="metricMonthGain" class="metric-value">-</div>
+<div id="metricYearGain" class="metric-value">-</div>
 </div>
 <div class="metric accent-blue">
 <div class="metric-label">チャージ</div>
-<div id="metricMonthCharge" class="metric-value">-</div>
+<div id="metricYearCharge" class="metric-value">-</div>
 </div>
 <div class="metric accent-red">
 <div class="metric-label">利用</div>
-<div id="metricMonthUsed" class="metric-value">-</div>
+<div id="metricYearUsed" class="metric-value">-</div>
 </div>
 </div>
 </section>
@@ -77,12 +77,20 @@
 </section>
 
 <section class="block chart-section">
-<h2>月別推移</h2>
+<div class="chart-header">
+<button id="monthlyPrev" class="nav-btn" type="button">&lt;</button>
+<h2 id="monthlyTitle">月別推移</h2>
+<button id="monthlyNext" class="nav-btn" type="button">&gt;</button>
+</div>
 <canvas id="chartMonthly"></canvas>
 </section>
 
 <section class="block chart-section">
-<h2>日別推移（過去30日）</h2>
+<div class="chart-header">
+<button id="dailyPrev" class="nav-btn" type="button">&lt;</button>
+<h2 id="dailyTitle">日別推移</h2>
+<button id="dailyNext" class="nav-btn" type="button">&gt;</button>
+</div>
 <canvas id="chartDaily"></canvas>
 </section>
 
@@ -142,6 +150,7 @@
 
 </div>
 
+<div id="chartTooltip" class="chart-tooltip hidden"></div>
 <script src="sidepanel.js"></script>
 </body>
 

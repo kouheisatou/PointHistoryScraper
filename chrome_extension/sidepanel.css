@@ -216,8 +216,63 @@ color: #d32f2f;
 
 /* ── Charts ── */
 
+.chart-header {
+display: flex;
+align-items: center;
+justify-content: space-between;
+padding: 0 0 8px;
+}
+
+.chart-header h2 {
+margin-bottom: 0;
+flex: 1;
+text-align: center;
+}
+
+.nav-btn {
+background: none;
+border: 1px solid #d0d0d0;
+border-radius: 4px;
+width: 28px;
+height: 28px;
+padding: 0;
+font-size: 14px;
+color: #666;
+cursor: pointer;
+display: flex;
+align-items: center;
+justify-content: center;
+}
+
+.nav-btn:hover {
+background: #f0f0f0;
+}
+
+.nav-btn:disabled {
+opacity: 0.3;
+cursor: default;
+}
+
+.nav-btn:disabled:hover {
+background: none;
+}
+
 .chart-section canvas {
 display: block;
+}
+
+.chart-tooltip {
+position: fixed;
+background: rgba(0, 0, 0, 0.8);
+color: #fff;
+font-size: 11px;
+padding: 6px 10px;
+border-radius: 4px;
+pointer-events: none;
+z-index: 100;
+white-space: pre-line;
+line-height: 1.6;
+max-width: 200px;
 }
 
 /* ── Export / filters ── */
