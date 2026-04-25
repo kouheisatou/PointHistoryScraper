@@ -90,11 +90,14 @@
 <div class="chart-header">
 <div>
 <h2>サービス別獲得ポイント</h2>
+<div class="donut-period-row">
 <span id="servicePeriod" class="chart-period"></span>
+<button id="donutPeriodToggle" class="period-toggle-btn" type="button" title="期間を変更">&#9660;</button>
+</div>
 </div>
 <button id="serviceShare" class="share-btn" type="button" title="画像として保存"><img src="share.svg" alt="共有" width="16" height="16"></button>
 </div>
-<div class="filters" style="margin-bottom:8px;">
+<div id="donutPeriodPanel" class="filters donut-period-panel hidden">
 <label for="donutFromDate">開始日</label>
 <input id="donutFromDate" type="date">
 <label for="donutToDate">終了日</label>

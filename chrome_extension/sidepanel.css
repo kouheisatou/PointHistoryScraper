@@ -263,6 +263,36 @@ cursor: default;
 background: none;
 }
 
+.donut-period-row {
+display: flex;
+align-items: center;
+gap: 4px;
+}
+
+.period-toggle-btn {
+background: none;
+border: none;
+padding: 0 2px;
+font-size: 8px;
+color: #999;
+cursor: pointer;
+line-height: 1;
+transition: transform 0.2s;
+}
+
+.period-toggle-btn:hover {
+color: #555;
+background: none;
+}
+
+.period-toggle-btn.open {
+transform: rotate(180deg);
+}
+
+.donut-period-panel {
+margin-bottom: 8px;
+}
+
 .share-btn {
 background: none;
 border: none;

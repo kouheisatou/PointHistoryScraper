@@ -652,6 +652,11 @@ const mx = e.clientX - rect.left;
 const my = e.clientY - rect.top;
 const hit = canvas._donutGetSlice?.(mx, my);
 if (hit && hit.name !== "その他") {
+const donutFrom = document.getElementById("donutFromDate").value || "";
+const donutTo = document.getElementById("donutToDate").value || "";
+if (donutFrom) document.getElementById("fromDate").value = donutFrom;
+if (donutTo) document.getElementById("toDate").value = donutTo;
+document.getElementById("yearShortcuts").querySelectorAll("button").forEach((b) => b.classList.remove("active"));
 activeServiceFilter = hit.name;
 document.getElementById("serviceShortcuts").querySelectorAll("button").forEach((b) => {
 b.classList.toggle("active", b.textContent === hit.name);
@@ -708,6 +713,12 @@ link.click();
 document.getElementById("monthlyShare").addEventListener("click", () => {
 const title = document.getElementById("monthlyTitle").textContent;
 saveCanvasAsImage(document.getElementById("chartMonthly"), title);
+});
+document.getElementById("donutPeriodToggle").addEventListener("click", () => {
+const panel = document.getElementById("donutPeriodPanel");
+const btn = document.getElementById("donutPeriodToggle");
+panel.classList.toggle("hidden");
+btn.classList.toggle("open");
 });
 document.getElementById("donutFromDate").addEventListener("change", () => drawServiceDonut());
 document.getElementById("donutToDate").addEventListener("change", () => drawServiceDonut());
