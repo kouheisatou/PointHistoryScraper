@@ -78,6 +78,23 @@ a.click();
 requestAnimationFrame(() => { a.remove(); URL.revokeObjectURL(url); });
 }
 
+function downloadXlsx(rows, from, to) {
+const header = COLUMNS.slice();
+const data = [header, ...rows.map((r) => COLUMNS.map((c) => r[c] || ""))];
+const ws = XLSX.utils.aoa_to_sheet(data);
+const wb = XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(wb, ws, "ポイント履歴");
+const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+const blob = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+const url = URL.createObjectURL(blob);
+const a = document.createElement("a");
+a.href = url;
+a.download = `rakuten-point-history_${getCurrentDateString()}_${from || "all"}_${to || "all"}.xlsx`;
+document.body.appendChild(a);
+a.click();
+requestAnimationFrame(() => { a.remove(); URL.revokeObjectURL(url); });
+}
+
 function getStorageRows() {
 return new Promise((resolve, reject) => {
 chrome.storage.local.get([STORAGE_KEY], (r) => {
@@ -952,6 +969,13 @@ const to = document.getElementById("toDate").value || null;
 if (from && to && from > to) { window.alert("開始日は終了日以前を指定してください"); return; }
 if (filteredRows.length === 0) { window.alert("エクスポートできる履歴がありません"); return; }
 downloadCsv(rowsToCsv(filteredRows), from, to);
+});
+document.getElementById("exportXlsxButton").addEventListener("click", () => {
+const from = document.getElementById("fromDate").value || null;
+const to = document.getElementById("toDate").value || null;
+if (from && to && from > to) { window.alert("開始日は終了日以前を指定してください"); return; }
+if (filteredRows.length === 0) { window.alert("エクスポートできる履歴がありません"); return; }
+downloadXlsx(filteredRows, from, to);
 });
 document.getElementById("fromDate").addEventListener("change", () => {
 document.getElementById("yearShortcuts").querySelectorAll("button").forEach((b) => b.classList.remove("active"));
