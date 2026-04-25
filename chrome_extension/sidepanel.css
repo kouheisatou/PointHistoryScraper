@@ -12,9 +12,9 @@ body {
 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 font-size: 13px;
 line-height: 1.5;
-padding: 10px;
-color: #111;
-background: #fff;
+color: #1a1a1a;
+background: #f5f5f7;
+overflow-x: hidden;
 }
 
 h1,
@@ -24,89 +24,273 @@ font-weight: 700;
 }
 
 h1 {
-font-size: 18px;
+font-size: 16px;
 }
 
 h2 {
-font-size: 14px;
+font-size: 13px;
 margin-bottom: 8px;
+color: #555;
+text-transform: uppercase;
+letter-spacing: 0.5px;
 }
+
+/* ── Header ── */
 
 .header {
-display: flex;
-align-items: center;
-justify-content: space-between;
-gap: 8px;
-margin-bottom: 10px;
+position: sticky;
+top: 0;
+z-index: 10;
+background: #bf0000;
+color: #fff;
+padding: 12px 14px;
 }
+
+/* ── Tabs ── */
+
+.tabs {
+display: flex;
+position: sticky;
+top: 40px;
+z-index: 10;
+background: #fff;
+border-bottom: 2px solid #e0e0e0;
+}
+
+.tab {
+flex: 1;
+padding: 10px 0;
+border: none;
+background: transparent;
+font: inherit;
+font-weight: 600;
+font-size: 13px;
+color: #888;
+cursor: pointer;
+border-bottom: 2px solid transparent;
+margin-bottom: -2px;
+transition: color 0.15s, border-color 0.15s;
+}
+
+.tab:hover {
+color: #333;
+}
+
+.tab.active {
+color: #bf0000;
+border-bottom-color: #bf0000;
+}
+
+/* ── Tab content ── */
+
+.tab-content {
+display: none;
+padding: 10px;
+}
+
+.tab-content.active {
+display: block;
+}
+
+/* ── Blocks ── */
 
 .block {
-border: 1px solid #111;
-padding: 10px;
+background: #fff;
+border-radius: 8px;
+padding: 12px;
 margin-bottom: 10px;
+box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+overflow: hidden;
 }
 
-button,
-input[type="date"] {
-font: inherit;
-}
+/* ── Buttons ── */
 
 button {
-border: 1px solid #111;
+font: inherit;
+border: 1px solid #d0d0d0;
 background: #fff;
-padding: 6px 8px;
+padding: 8px 12px;
+border-radius: 6px;
+cursor: pointer;
+transition: background 0.15s;
+}
+
+button:hover {
+background: #f0f0f0;
+}
+
+button.primary {
+background: #bf0000;
+color: #fff;
+border-color: #bf0000;
+font-weight: 600;
+}
+
+button.primary:hover {
+background: #a00;
+}
+
+button.link-btn {
+background: none;
+border: none;
+color: #888;
+padding: 0;
+font-size: 12px;
+text-decoration: underline;
 cursor: pointer;
 }
 
-.actions button,
-.export .buttons button {
-width: 100%;
-margin-top: 6px;
+button.link-btn:hover {
+color: #bf0000;
+background: none;
 }
+
+.actions button {
+width: 100%;
+background: #bf0000;
+color: #fff;
+border-color: #bf0000;
+font-weight: 600;
+font-size: 14px;
+padding: 10px;
+}
+
+.actions button:hover {
+background: #a00;
+}
+
+.actions .hint {
+margin: 6px 0 0;
+font-size: 11px;
+color: #888;
+}
+
+/* ── Metrics ── */
 
 .metrics {
 display: grid;
-grid-template-columns: 1fr 1fr;
 gap: 8px;
 }
 
+.metrics.cols-3 {
+grid-template-columns: 1fr 1fr 1fr;
+}
+
+.mt-8 {
+margin-top: 8px;
+}
+
 .metric {
-border: 1px solid #111;
-padding: 6px;
+background: #f9f9f9;
+border-radius: 6px;
+padding: 8px 10px;
+min-width: 0;
 }
 
 .metric-label {
 font-size: 11px;
-color: #555;
+color: #888;
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
 }
 
 .metric-value {
-margin-top: 4px;
+margin-top: 2px;
 font-weight: 700;
+font-size: 14px;
 word-break: break-all;
 }
 
+.metric.accent-green .metric-value {
+color: #0a8a2a;
+}
+
+.metric.accent-blue .metric-value {
+color: #1565c0;
+}
+
+.metric.accent-red .metric-value {
+color: #d32f2f;
+}
+
+/* ── Charts ── */
+
+.chart-section canvas {
+display: block;
+}
+
+/* ── Export / filters ── */
+
 .filters {
 display: grid;
-grid-template-columns: 1fr;
-gap: 4px;
+grid-template-columns: auto 1fr;
+align-items: center;
+gap: 4px 8px;
+margin-bottom: 8px;
+}
+
+.filters label {
+font-size: 12px;
+color: #555;
+}
+
+.filters input[type="date"] {
+font: inherit;
+padding: 6px 8px;
+border: 1px solid #d0d0d0;
+border-radius: 6px;
+width: 100%;
+min-width: 0;
+}
+
+.export .buttons {
+display: flex;
+gap: 6px;
+}
+
+.export .buttons button {
+flex: 1;
+font-size: 12px;
+}
+
+/* ── History table ── */
+
+.history-header {
+display: flex;
+align-items: center;
+gap: 8px;
+margin-bottom: 8px;
+}
+
+.history-header h2 {
+margin-bottom: 0;
+}
+
+.badge {
+font-size: 11px;
+background: #eee;
+padding: 2px 8px;
+border-radius: 10px;
+color: #555;
 }
 
 .table-wrap {
-max-height: 360px;
-overflow: auto;
-border: 1px solid #111;
+overflow-x: auto;
+border-radius: 6px;
+border: 1px solid #e0e0e0;
 }
 
 table {
 border-collapse: collapse;
 width: 100%;
+font-size: 12px;
 }
 
 th,
 td {
-border: 1px solid #111;
-padding: 4px 6px;
+border-bottom: 1px solid #eee;
+padding: 6px 8px;
 vertical-align: top;
 text-align: left;
 white-space: pre-wrap;
@@ -115,16 +299,54 @@ white-space: pre-wrap;
 th {
 position: sticky;
 top: 0;
-background: #fff;
+background: #fafafa;
+font-weight: 600;
+color: #555;
 z-index: 1;
+border-bottom: 2px solid #e0e0e0;
+}
+
+tr:hover td {
+background: #fafafa;
 }
 
 .empty {
-padding: 8px;
-border: 1px solid #111;
-margin-bottom: 8px;
+padding: 20px;
+text-align: center;
+color: #aaa;
 }
 
 .hidden {
 display: none;
+}
+
+/* ── Import ── */
+
+.import-section {
+padding: 8px 12px;
+}
+
+.import-row {
+display: flex;
+align-items: center;
+gap: 8px;
+}
+
+.import-label {
+font-size: 11px;
+color: #aaa;
+}
+
+.import-status {
+margin-top: 6px;
+padding: 6px 10px;
+border-radius: 6px;
+font-size: 11px;
+background: #e8f5e9;
+color: #2e7d32;
+}
+
+.import-status.error {
+background: #fce4ec;
+color: #c62828;
 }

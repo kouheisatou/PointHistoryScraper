@@ -4,45 +4,99 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天ポイント履歴 サイドパネル</title>
+<title>楽天ポイント履歴</title>
 <link rel="stylesheet" href="sidepanel.css">
 </head>
 
 <body>
 <header class="header">
 <h1>楽天ポイント履歴</h1>
-<button id="refreshButton" type="button">更新</button>
 </header>
 
+<nav class="tabs">
+<button class="tab active" data-tab="home">ホーム</button>
+<button class="tab" data-tab="history">履歴</button>
+</nav>
+
+<!-- ホームタブ -->
+<div id="tab-home" class="tab-content active">
+
 <section class="block actions">
-<h2>取得</h2>
 <button id="startScrapeButton" type="button">取得開始</button>
+<p class="hint">楽天ポイント履歴ページを開いてデータを取得します。中断する場合はタブを閉じてください。</p>
 </section>
 
 <section class="block dashboard">
-<h2>ダッシュボード</h2>
-<div class="metrics">
-<div class="metric">
-<div class="metric-label">保存件数</div>
-<div id="metricTotal" class="metric-value">0</div>
+<h2>今月</h2>
+<div class="metrics cols-3">
+<div class="metric accent-green">
+<div class="metric-label">獲得</div>
+<div id="metricMonthGain" class="metric-value">-</div>
 </div>
-<div class="metric">
-<div class="metric-label">表示件数</div>
-<div id="metricVisible" class="metric-value">0</div>
+<div class="metric accent-blue">
+<div class="metric-label">チャージ</div>
+<div id="metricMonthCharge" class="metric-value">-</div>
 </div>
-<div class="metric">
-<div class="metric-label">期間（最古）</div>
-<div id="metricMinDate" class="metric-value">-</div>
-</div>
-<div class="metric">
-<div class="metric-label">期間（最新）</div>
-<div id="metricMaxDate" class="metric-value">-</div>
+<div class="metric accent-red">
+<div class="metric-label">利用</div>
+<div id="metricMonthUsed" class="metric-value">-</div>
 </div>
 </div>
 </section>
 
+<section class="block dashboard">
+<h2>全期間</h2>
+<div class="metrics cols-3">
+<div class="metric accent-green">
+<div class="metric-label">獲得合計</div>
+<div id="metricTotalGain" class="metric-value">-</div>
+</div>
+<div class="metric accent-blue">
+<div class="metric-label">チャージ合計</div>
+<div id="metricTotalCharge" class="metric-value">-</div>
+</div>
+<div class="metric accent-red">
+<div class="metric-label">利用合計</div>
+<div id="metricTotalUsed" class="metric-value">-</div>
+</div>
+</div>
+<div class="metrics cols-3 mt-8">
+<div class="metric">
+<div class="metric-label">ポイント利息累計</div>
+<div id="metricInterest" class="metric-value">-</div>
+</div>
+<div class="metric">
+<div class="metric-label">月平均獲得</div>
+<div id="metricAvgGain" class="metric-value">-</div>
+</div>
+<div class="metric">
+<div class="metric-label">月平均利用</div>
+<div id="metricAvgUsed" class="metric-value">-</div>
+</div>
+</div>
+</section>
+
+<section class="block chart-section">
+<h2>月別推移</h2>
+<canvas id="chartMonthly"></canvas>
+</section>
+
+<section class="block chart-section">
+<h2>日別推移（過去30日）</h2>
+<canvas id="chartDaily"></canvas>
+</section>
+
+<section class="block chart-section">
+<h2>サービス別獲得ポイント</h2>
+<canvas id="chartService"></canvas>
+</section>
+
+</div>
+
+<!-- 履歴タブ -->
+<div id="tab-history" class="tab-content">
+
 <section class="block export">
-<h2>エクスポート</h2>
 <div class="filters">
 <label for="fromDate">開始日</label>
 <input id="fromDate" type="date">
@@ -50,31 +104,43 @@
 <input id="toDate" type="date">
 </div>
 <div class="buttons">
-<button id="applyFilterButton" type="button">絞り込み</button>
-<button id="clearFilterButton" type="button">絞り込み解除</button>
-<button id="exportCsvButton" type="button">CSVエクスポート</button>
+<button id="exportCsvButton" type="button" class="primary">CSVエクスポート</button>
 </div>
 </section>
 
 <section class="block history">
-<h2>履歴</h2>
+<div class="history-header">
+<h2>履歴一覧</h2>
+<span id="historyCount" class="badge">0件</span>
+</div>
 <div id="historyEmpty" class="empty">表示できる履歴がありません</div>
 <div class="table-wrap">
 <table>
 <thead>
 <tr>
-<th>date</th>
-<th>service</th>
-<th>title</th>
-<th>action</th>
-<th>point</th>
-<th>note</th>
+<th>日付</th>
+<th>サービス</th>
+<th>詳細</th>
+<th>種別</th>
+<th>ポイント</th>
+<th>備考</th>
 </tr>
 </thead>
 <tbody id="historyTableBody"></tbody>
 </table>
 </div>
 </section>
+
+<section class="import-section">
+<div class="import-row">
+<span class="import-label">CSVインポート（複数選択可）</span>
+<button id="importCsvButton" type="button" class="link-btn">ファイルを選択</button>
+<input id="importCsvInput" type="file" accept=".csv" multiple hidden>
+</div>
+<div id="importStatus" class="import-status hidden"></div>
+</section>
+
+</div>
 
 <script src="sidepanel.js"></script>
 </body>
