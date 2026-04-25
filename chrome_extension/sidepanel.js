@@ -443,13 +443,22 @@ return labels;
 function buildMonthlyCumGain(stats, labels) {
 const cum = {};
 const firstLabel = labels[0];
+const lastLabel = labels[labels.length - 1];
+// 最初にデータが存在する月を特定
+const firstDataMonth = stats.sortedMonths.find((m) => (stats.monthlyGain[m] || 0) > 0);
 let total = 0;
 stats.sortedMonths.forEach((m) => {
 total += (stats.monthlyGain[m] || 0);
-if (m >= firstLabel) cum[m] = total;
+if (m >= firstLabel && m <= lastLabel) cum[m] = total;
 });
+// データがない月の補間:
+// - 最初のデータ月より前 → 0
+// - それ以降 → 直前の累計値を引き継ぐ
+let prev = 0;
 labels.forEach((m) => {
-if (!(m in cum)) cum[m] = total;
+if (m in cum) { prev = cum[m]; }
+else if (firstDataMonth && m < firstDataMonth) { cum[m] = 0; }
+else { cum[m] = prev; }
 });
 return cum;
 }
