@@ -1,10 +1,11 @@
 const STORAGE_KEY = "rakutenPointHistoryRows";
 const COLUMNS = ["date", "service", "title", "action", "point", "note"];
+const UTF8_BOM = new Uint8Array([0xEF, 0xBB, 0xBF]);
 
 let allRows = [];
 let filteredRows = [];
 
-function getCurrentDate() {
+function getCurrentDateString() {
 const today = new Date();
 const year = today.getFullYear();
 const month = (today.getMonth() + 1).toString().padStart(2, "0");
@@ -45,19 +46,19 @@ return [header, ...lines].join("\n");
 }
 
 function downloadCsv(csv, fromDate, toDate) {
-const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: "text/csv;charset=utf-8" });
-const downloadUrl = URL.createObjectURL(blob);
-const link = document.createElement("a");
-const fromLabel = fromDate || "all";
-const toLabel = toDate || "all";
-link.href = downloadUrl;
-link.download = `rakuten-point-history_${getCurrentDate()}_${fromLabel}_${toLabel}.csv`;
-document.body.appendChild(link);
-link.click();
-setTimeout(() => {
-link.remove();
-URL.revokeObjectURL(downloadUrl);
-}, 0);
+	const blob = new Blob([UTF8_BOM, csv], { type: "text/csv;charset=utf-8" });
+	const downloadUrl = URL.createObjectURL(blob);
+	const link = document.createElement("a");
+	const fromLabel = fromDate || "all";
+	const toLabel = toDate || "all";
+	link.href = downloadUrl;
+	link.download = `rakuten-point-history_${getCurrentDateString()}_${fromLabel}_${toLabel}.csv`;
+	document.body.appendChild(link);
+	link.click();
+	requestAnimationFrame(() => {
+		link.remove();
+		URL.revokeObjectURL(downloadUrl);
+	});
 }
 
 function getStorageRows() {
