@@ -530,6 +530,30 @@ z-index: 1;
 border-bottom: 2px solid #d5dae2;
 }
 
+th.sortable {
+cursor: pointer;
+user-select: none;
+}
+
+th.sortable:hover {
+color: #444;
+}
+
+th.sortable .sort-arrow {
+font-size: 9px;
+color: #aaa;
+}
+
+th.sortable.asc .sort-arrow::after {
+content: " \25B2";
+color: #bf0000;
+}
+
+th.sortable.desc .sort-arrow::after {
+content: " \25BC";
+color: #bf0000;
+}
+
 td {
 background: #eff2f6;
 }

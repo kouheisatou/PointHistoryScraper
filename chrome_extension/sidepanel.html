@@ -109,6 +109,26 @@
 <canvas id="chartService"></canvas>
 </section>
 
+<section class="block chart-section">
+<div class="chart-header">
+<div>
+<h2>詳細別利用ポイント</h2>
+<div class="donut-period-row">
+<span id="usedPeriod" class="chart-period"></span>
+<button id="usedDonutPeriodToggle" class="period-toggle-btn" type="button" title="期間を変更">&#9660;</button>
+</div>
+</div>
+<button id="usedShare" class="share-btn" type="button" title="画像として保存"><img src="share.svg" alt="共有" width="16" height="16"></button>
+</div>
+<div id="usedDonutPeriodPanel" class="filters donut-period-panel hidden">
+<label for="usedDonutFromDate">開始日</label>
+<input id="usedDonutFromDate" type="date">
+<label for="usedDonutToDate">終了日</label>
+<input id="usedDonutToDate" type="date">
+</div>
+<canvas id="chartUsed"></canvas>
+</section>
+
 </div>
 
 <!-- 履歴タブ -->
@@ -123,6 +143,7 @@
 </div>
 <div id="yearShortcuts" class="year-shortcuts"></div>
 <div id="serviceShortcuts" class="year-shortcuts"></div>
+<div id="actionShortcuts" class="year-shortcuts"></div>
 <div class="buttons">
 <button id="exportCsvButton" type="button" class="primary">CSVダウンロード</button>
 <button id="exportXlsxButton" type="button" class="primary">Excelダウンロード</button>
@@ -139,11 +160,11 @@
 <table>
 <thead>
 <tr>
-<th>日付</th>
+<th class="sortable" data-sort="date">日付 <span class="sort-arrow"></span></th>
 <th>サービス</th>
 <th>詳細</th>
 <th>種別</th>
-<th>ポイント</th>
+<th class="sortable" data-sort="point">ポイント <span class="sort-arrow"></span></th>
 <th>備考</th>
 </tr>
 </thead>

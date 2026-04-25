@@ -146,7 +146,9 @@ document.getElementById("fromDate").value = `${y}-${ms}-01`;
 document.getElementById("toDate").value = `${y}-${ms}-${String(lastDay).padStart(2, "0")}`;
 document.getElementById("yearShortcuts").querySelectorAll("button").forEach((b) => b.classList.remove("active"));
 activeServiceFilters.clear();
+activeActionFilters.clear();
 document.getElementById("serviceShortcuts").querySelectorAll("button").forEach((b) => b.classList.remove("active"));
+document.getElementById("actionShortcuts").querySelectorAll("button").forEach((b) => b.classList.remove("active"));
 applyFilter();
 switchTab("history");
 }
@@ -211,6 +213,7 @@ function drawAllCharts() {
 if (!lastStats) return;
 drawMonthlyChart();
 drawServiceDonut();
+drawUsedDonut();
 }
 
 function updateDashboard(rows) {
@@ -686,9 +689,11 @@ if (donutTo) document.getElementById("toDate").value = donutTo;
 document.getElementById("yearShortcuts").querySelectorAll("button").forEach((b) => b.classList.remove("active"));
 activeServiceFilters.clear();
 activeServiceFilters.add(hit.name);
+activeActionFilters.clear();
 document.getElementById("serviceShortcuts").querySelectorAll("button").forEach((b) => {
 b.classList.toggle("active", b.textContent === hit.name);
 });
+document.getElementById("actionShortcuts").querySelectorAll("button").forEach((b) => b.classList.remove("active"));
 applyFilter();
 switchTab("history");
 }
@@ -696,6 +701,113 @@ switchTab("history");
 }
 canvas._donutGetSlice = getSliceAtPoint;
 canvas._donutTotal = total;
+}
+
+/* ── Used donut (by title) ── */
+
+function computeTitleUsedForRange(rows, from, to) {
+const titleUsed = {};
+rows.forEach((row) => {
+const d = parseDateFromRow(row.date);
+if (!d) return;
+if (from && d < from) return;
+if (to && d > to) return;
+const type = classifyAction(row.action);
+if (type !== "used") return;
+const point = parsePointValue(row.point);
+const title = row.title || "その他";
+titleUsed[title] = (titleUsed[title] || 0) + Math.abs(point);
+});
+return titleUsed;
+}
+
+function drawUsedDonut() {
+if (!lastStats) return;
+const canvas = document.getElementById("chartUsed");
+const periodEl = document.getElementById("usedPeriod");
+const from = document.getElementById("usedDonutFromDate").value || null;
+const to = document.getElementById("usedDonutToDate").value || null;
+if (from && to) {
+periodEl.textContent = `${formatDateJP(from)} 〜 ${formatDateJP(to)}`;
+} else {
+periodEl.textContent = "";
+}
+
+const titleUsed = computeTitleUsedForRange(allRows, from, to);
+const entries = Object.entries(titleUsed).sort((a, b) => b[1] - a[1]);
+if (entries.length === 0) {
+const r = setupCanvas(canvas, 0.4);
+if (!r) return;
+r.ctx.fillStyle = "#aaa"; r.ctx.font = "12px sans-serif"; r.ctx.textAlign = "center";
+r.ctx.fillText("データがありません", r.w / 2, r.h / 2);
+return;
+}
+
+const total = entries.reduce((s, e) => s + e[1], 0);
+const topN = entries.slice(0, 8);
+const otherSum = entries.slice(8).reduce((s, e) => s + e[1], 0);
+if (otherSum > 0) topN.push(["その他", otherSum]);
+
+const r = setupCanvas(canvas, 1.0);
+if (!r) return;
+const { ctx, w, h } = r;
+
+const cx = w / 2;
+const cy = h / 2;
+const radius = Math.min(w, h) * 0.44;
+const inner = radius * 0.52;
+const labelR = (radius + inner) / 2;
+const outerLabelR = radius + 14;
+
+let angle = -Math.PI / 2;
+const slices = [];
+topN.forEach(([name, val], i) => {
+const slice = (val / total) * Math.PI * 2;
+const midAngle = angle + slice / 2;
+ctx.fillStyle = DONUT_COLORS[i % DONUT_COLORS.length];
+ctx.beginPath();
+ctx.moveTo(cx + Math.cos(angle) * inner, cy + Math.sin(angle) * inner);
+ctx.arc(cx, cy, radius, angle, angle + slice);
+ctx.arc(cx, cy, inner, angle + slice, angle, true);
+ctx.closePath();
+ctx.fill();
+slices.push({ name, val, slice, midAngle, color: DONUT_COLORS[i % DONUT_COLORS.length] });
+angle += slice;
+});
+
+slices.forEach((s) => {
+const pct = (s.val / total) * 100;
+const large = pct >= 6;
+const lx = cx + Math.cos(s.midAngle) * (large ? labelR : outerLabelR);
+const ly = cy + Math.sin(s.midAngle) * (large ? labelR : outerLabelR);
+
+ctx.save();
+ctx.textAlign = "center"; ctx.textBaseline = "middle";
+if (large) {
+ctx.fillStyle = "#fff";
+ctx.font = "bold 10px sans-serif";
+ctx.fillText(s.name, lx, ly - 6);
+ctx.font = "9px sans-serif";
+ctx.fillText(`${pct.toFixed(1)}% ${fmt(s.val)}`, lx, ly + 7);
+} else {
+ctx.fillStyle = s.color;
+ctx.font = "8px sans-serif";
+const isRight = Math.cos(s.midAngle) >= 0;
+ctx.textAlign = isRight ? "left" : "right";
+ctx.fillText(`${s.name} ${pct.toFixed(1)}%`, lx + (isRight ? 4 : -4), ly - 5);
+ctx.fillStyle = "#888";
+ctx.fillText(`${fmt(s.val)}`, lx + (isRight ? 4 : -4), ly + 6);
+}
+ctx.restore();
+});
+
+ctx.fillStyle = "#333"; ctx.font = "bold 14px sans-serif";
+ctx.textAlign = "center"; ctx.textBaseline = "middle";
+ctx.fillText(fmt(total), cx, cy - 7);
+ctx.font = "10px sans-serif"; ctx.fillStyle = "#888";
+ctx.fillText("利用合計", cx, cy + 9);
+
+setupDonutListeners(canvas, cx, cy, inner, radius, slices, total);
 }
 
 /* ── Chart share (save as image) ── */
@@ -756,6 +868,19 @@ const period = document.getElementById("servicePeriod").textContent;
 const title = "サービス別獲得ポイント" + (period ? "\n" + period : "");
 saveCanvasAsImage(document.getElementById("chartService"), title);
 });
+document.getElementById("usedDonutPeriodToggle").addEventListener("click", () => {
+const panel = document.getElementById("usedDonutPeriodPanel");
+const btn = document.getElementById("usedDonutPeriodToggle");
+panel.classList.toggle("hidden");
+btn.classList.toggle("open");
+});
+document.getElementById("usedDonutFromDate").addEventListener("change", () => drawUsedDonut());
+document.getElementById("usedDonutToDate").addEventListener("change", () => drawUsedDonut());
+document.getElementById("usedShare").addEventListener("click", () => {
+const period = document.getElementById("usedPeriod").textContent;
+const title = "詳細別利用ポイント" + (period ? "\n" + period : "");
+saveCanvasAsImage(document.getElementById("chartUsed"), title);
+});
 
 /* ── History table ── */
 
@@ -780,6 +905,30 @@ body.appendChild(tr);
 /* ── Filters ── */
 
 let activeServiceFilters = new Set();
+let activeActionFilters = new Set();
+let sortColumn = "date";
+let sortDirection = "desc";
+
+function sortFilteredRows() {
+filteredRows.sort((a, b) => {
+let cmp = 0;
+if (sortColumn === "date") {
+const da = parseDateFromRow(a.date) || "";
+const db = parseDateFromRow(b.date) || "";
+cmp = da.localeCompare(db);
+} else if (sortColumn === "point") {
+cmp = parsePointValue(a.point) - parsePointValue(b.point);
+}
+return sortDirection === "asc" ? cmp : -cmp;
+});
+}
+
+function updateSortUI() {
+document.querySelectorAll("#tab-history th.sortable").forEach((th) => {
+th.classList.remove("asc", "desc");
+if (th.dataset.sort === sortColumn) th.classList.add(sortDirection);
+});
+}
 
 function applyFilter() {
 const from = document.getElementById("fromDate").value || null;
@@ -791,8 +940,11 @@ if (!d) return false;
 if (from && d < from) return false;
 if (to && d > to) return false;
 if (activeServiceFilters.size > 0 && !activeServiceFilters.has(row.service)) return false;
+if (activeActionFilters.size > 0 && !activeActionFilters.has(classifyAction(row.action))) return false;
 return true;
 });
+sortFilteredRows();
+updateSortUI();
 renderHistoryTable(filteredRows);
 }
 
@@ -803,8 +955,11 @@ document.getElementById("fromDate").value = dates[0];
 document.getElementById("toDate").value = dates[dates.length - 1];
 document.getElementById("donutFromDate").value = dates[0];
 document.getElementById("donutToDate").value = dates[dates.length - 1];
+document.getElementById("usedDonutFromDate").value = dates[0];
+document.getElementById("usedDonutToDate").value = dates[dates.length - 1];
 buildYearShortcuts();
 buildServiceShortcuts();
+buildActionShortcuts();
 }
 
 function buildYearShortcuts() {
@@ -866,6 +1021,32 @@ activeServiceFilters.delete(svc);
 btn.classList.remove("active");
 } else {
 activeServiceFilters.add(svc);
+btn.classList.add("active");
+}
+applyFilter();
+});
+container.appendChild(btn);
+});
+}
+
+function buildActionShortcuts() {
+const container = document.getElementById("actionShortcuts");
+container.innerHTML = "";
+const types = [
+{ key: "gain", label: "獲得" },
+{ key: "charge", label: "チャージ" },
+{ key: "used", label: "利用" },
+];
+types.forEach(({ key, label }) => {
+const btn = document.createElement("button");
+btn.type = "button";
+btn.textContent = label;
+btn.addEventListener("click", () => {
+if (activeActionFilters.has(key)) {
+activeActionFilters.delete(key);
+btn.classList.remove("active");
+} else {
+activeActionFilters.add(key);
 btn.classList.add("active");
 }
 applyFilter();
@@ -993,6 +1174,21 @@ applyFilter();
 document.getElementById("toDate").addEventListener("change", () => {
 document.getElementById("yearShortcuts").querySelectorAll("button").forEach((b) => b.classList.remove("active"));
 applyFilter();
+});
+
+document.querySelector("#tab-history table thead").addEventListener("click", (e) => {
+const th = e.target.closest("th.sortable");
+if (!th) return;
+const col = th.dataset.sort;
+if (sortColumn === col) {
+sortDirection = sortDirection === "asc" ? "desc" : "asc";
+} else {
+sortColumn = col;
+sortDirection = "desc";
+}
+sortFilteredRows();
+updateSortUI();
+renderHistoryTable(filteredRows);
 });
 
 const importInput = document.getElementById("importCsvInput");
