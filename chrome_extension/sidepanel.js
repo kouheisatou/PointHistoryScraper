@@ -96,7 +96,7 @@ resolve();
 });
 }
 
-function fmt(n) { return n.toLocaleString("ja-JP"); }
+function fmt(n) { return "¥" + n.toLocaleString("ja-JP"); }
 
 
 /* ── Tab switching ── */
@@ -107,6 +107,7 @@ document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
 document.querySelectorAll(".tab-content").forEach((c) => c.classList.remove("active"));
 tab.classList.add("active");
 document.getElementById("tab-" + tab.dataset.tab).classList.add("active");
+document.getElementById("exportCallout").classList.add("hidden");
 });
 });
 
@@ -127,7 +128,7 @@ const lastDay = new Date(parseInt(y, 10), mi, 0).getDate();
 document.getElementById("fromDate").value = `${y}-${ms}-01`;
 document.getElementById("toDate").value = `${y}-${ms}-${String(lastDay).padStart(2, "0")}`;
 document.getElementById("yearShortcuts").querySelectorAll("button").forEach((b) => b.classList.remove("active"));
-activeServiceFilter = null;
+activeServiceFilters.clear();
 document.getElementById("serviceShortcuts").querySelectorAll("button").forEach((b) => b.classList.remove("active"));
 applyFilter();
 switchTab("history");
@@ -200,15 +201,15 @@ const s = computeStats(rows);
 lastStats = s;
 // 初期表示: 最新の年・月
 monthlyPage = 0;
-document.getElementById("metricYearGain").textContent = "+" + fmt(s.yearGain);
+document.getElementById("metricYearGain").textContent = fmt(s.yearGain);
 document.getElementById("metricYearCharge").textContent = fmt(s.yearCharge);
-document.getElementById("metricYearUsed").textContent = "-" + fmt(s.yearUsed);
-document.getElementById("metricTotalGain").textContent = "+" + fmt(s.totalGain);
+document.getElementById("metricYearUsed").textContent = fmt(s.yearUsed);
+document.getElementById("metricTotalGain").textContent = fmt(s.totalGain);
 document.getElementById("metricTotalCharge").textContent = fmt(s.totalCharge);
-document.getElementById("metricTotalUsed").textContent = "-" + fmt(s.totalUsed);
+document.getElementById("metricTotalUsed").textContent = fmt(s.totalUsed);
 document.getElementById("metricInterest").textContent = fmt(s.totalInterest);
-document.getElementById("metricAvgGain").textContent = "+" + fmt(s.avgGain);
-document.getElementById("metricAvgUsed").textContent = "-" + fmt(s.avgUsed);
+document.getElementById("metricAvgGain").textContent = fmt(s.avgGain);
+document.getElementById("metricAvgUsed").textContent = fmt(s.avgUsed);
 requestAnimationFrame(drawAllCharts);
 }
 
@@ -578,7 +579,7 @@ ctx.fillStyle = "#fff";
 ctx.font = "bold 10px sans-serif";
 ctx.fillText(s.name, lx, ly - 6);
 ctx.font = "9px sans-serif";
-ctx.fillText(`${pct.toFixed(1)}% ${fmt(s.val)}P`, lx, ly + 7);
+ctx.fillText(`${pct.toFixed(1)}% ${fmt(s.val)}`, lx, ly + 7);
 } else {
 ctx.fillStyle = s.color;
 ctx.font = "8px sans-serif";
@@ -586,7 +587,7 @@ const isRight = Math.cos(s.midAngle) >= 0;
 ctx.textAlign = isRight ? "left" : "right";
 ctx.fillText(`${s.name} ${pct.toFixed(1)}%`, lx + (isRight ? 4 : -4), ly - 5);
 ctx.fillStyle = "#888";
-ctx.fillText(`${fmt(s.val)}P`, lx + (isRight ? 4 : -4), ly + 6);
+ctx.fillText(`${fmt(s.val)}`, lx + (isRight ? 4 : -4), ly + 6);
 }
 ctx.restore();
 });
@@ -628,7 +629,7 @@ const my = e.clientY - rect.top;
 const hit = canvas._donutGetSlice?.(mx, my);
 if (hit) {
 const pct = ((hit.val / (canvas._donutTotal || 1)) * 100).toFixed(1);
-tooltipEl.textContent = `${hit.name}\n${pct}%  ${fmt(hit.val)}P`;
+tooltipEl.textContent = `${hit.name}\n${pct}%  ${fmt(hit.val)}`;
 tooltipEl.classList.remove("hidden");
 tooltipEl.style.left = "0px";
 tooltipEl.style.top = "0px";
@@ -657,7 +658,8 @@ const donutTo = document.getElementById("donutToDate").value || "";
 if (donutFrom) document.getElementById("fromDate").value = donutFrom;
 if (donutTo) document.getElementById("toDate").value = donutTo;
 document.getElementById("yearShortcuts").querySelectorAll("button").forEach((b) => b.classList.remove("active"));
-activeServiceFilter = hit.name;
+activeServiceFilters.clear();
+activeServiceFilters.add(hit.name);
 document.getElementById("serviceShortcuts").querySelectorAll("button").forEach((b) => {
 b.classList.toggle("active", b.textContent === hit.name);
 });
@@ -751,7 +753,7 @@ body.appendChild(tr);
 
 /* ── Filters ── */
 
-let activeServiceFilter = null;
+let activeServiceFilters = new Set();
 
 function applyFilter() {
 const from = document.getElementById("fromDate").value || null;
@@ -762,7 +764,7 @@ const d = parseDateFromRow(row.date);
 if (!d) return false;
 if (from && d < from) return false;
 if (to && d > to) return false;
-if (activeServiceFilter && row.service !== activeServiceFilter) return false;
+if (activeServiceFilters.size > 0 && !activeServiceFilters.has(row.service)) return false;
 return true;
 });
 renderHistoryTable(filteredRows);
@@ -786,7 +788,12 @@ const now = new Date();
 const cy = now.getFullYear();
 const cm = now.getMonth(); // 0-based
 
+const dates = allRows.map((r) => parseDateFromRow(r.date)).filter(Boolean).sort();
 const items = [];
+// 全期間
+if (dates.length > 0) {
+items.push({ label: "全期間", from: dates[0], to: dates[dates.length - 1] });
+}
 // 3年前から今年まで
 for (let y = cy - 3; y <= cy; y++) {
 items.push({ label: String(y), from: `${y}-01-01`, to: `${y}-12-31` });
@@ -801,10 +808,11 @@ const lastDay = new Date(y, m, 0).getDate();
 items.push({ label: `${y}年${m}月`, from: `${y}-${ms}-01`, to: `${y}-${ms}-${String(lastDay).padStart(2, "0")}` });
 }
 
-items.forEach((item) => {
+items.forEach((item, idx) => {
 const btn = document.createElement("button");
 btn.type = "button";
 btn.textContent = item.label;
+if (idx === 0) btn.classList.add("active");
 btn.addEventListener("click", () => {
 document.getElementById("fromDate").value = item.from;
 document.getElementById("toDate").value = item.to;
@@ -827,12 +835,11 @@ const btn = document.createElement("button");
 btn.type = "button";
 btn.textContent = svc;
 btn.addEventListener("click", () => {
-if (activeServiceFilter === svc) {
-activeServiceFilter = null;
+if (activeServiceFilters.has(svc)) {
+activeServiceFilters.delete(svc);
 btn.classList.remove("active");
 } else {
-activeServiceFilter = svc;
-container.querySelectorAll("button").forEach((b) => b.classList.remove("active"));
+activeServiceFilters.add(svc);
 btn.classList.add("active");
 }
 applyFilter();
@@ -959,9 +966,25 @@ const importInput = document.getElementById("importCsvInput");
 document.getElementById("importCsvButton").addEventListener("click", () => { importInput.value = ""; importInput.click(); });
 importInput.addEventListener("change", () => { if (importInput.files.length > 0) importCsvFiles(importInput.files); });
 
+const CALLOUT_SHOWN_KEY = "exportCalloutShown";
+
+function showExportCalloutIfNeeded() {
+chrome.storage.local.get([CALLOUT_SHOWN_KEY], (r) => {
+if (r[CALLOUT_SHOWN_KEY]) return;
+chrome.storage.local.set({ [CALLOUT_SHOWN_KEY]: true });
+const el = document.getElementById("exportCallout");
+el.classList.remove("hidden");
+el.addEventListener("click", () => el.classList.add("hidden"));
+setTimeout(() => el.classList.add("hidden"), 6000);
+});
+}
+
 chrome.storage.onChanged.addListener((changes, area) => {
 if (area === "local" && Object.prototype.hasOwnProperty.call(changes, STORAGE_KEY)) refreshRows();
 });
 
 // レイアウト完了後に初回描画
-requestAnimationFrame(() => requestAnimationFrame(() => refreshRows()));
+requestAnimationFrame(() => requestAnimationFrame(() => {
+refreshRows();
+showExportCalloutIfNeeded();
+}));
