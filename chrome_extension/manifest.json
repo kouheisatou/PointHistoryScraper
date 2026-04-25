@@ -1,7 +1,7 @@
 {
 	"manifest_version": 3,
 	"name": "楽天ポイント履歴一括保存",
-	"version": "1.1.1",
+	"version": "2.0.0",
 	"description": "楽天PointClubのポイント履歴をローカル保存し、期間指定でCSVエクスポート",
 	"action": {
 		"default_title": "楽天ポイント履歴一括保存"
