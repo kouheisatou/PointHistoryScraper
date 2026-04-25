@@ -1,0 +1,130 @@
+* {
+box-sizing: border-box;
+}
+
+html,
+body {
+margin: 0;
+padding: 0;
+}
+
+body {
+font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+font-size: 13px;
+line-height: 1.5;
+padding: 10px;
+color: #111;
+background: #fff;
+}
+
+h1,
+h2 {
+margin: 0;
+font-weight: 700;
+}
+
+h1 {
+font-size: 18px;
+}
+
+h2 {
+font-size: 14px;
+margin-bottom: 8px;
+}
+
+.header {
+display: flex;
+align-items: center;
+justify-content: space-between;
+gap: 8px;
+margin-bottom: 10px;
+}
+
+.block {
+border: 1px solid #111;
+padding: 10px;
+margin-bottom: 10px;
+}
+
+button,
+input[type="date"] {
+font: inherit;
+}
+
+button {
+border: 1px solid #111;
+background: #fff;
+padding: 6px 8px;
+cursor: pointer;
+}
+
+.actions button,
+.export .buttons button {
+width: 100%;
+margin-top: 6px;
+}
+
+.metrics {
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 8px;
+}
+
+.metric {
+border: 1px solid #111;
+padding: 6px;
+}
+
+.metric-label {
+font-size: 11px;
+color: #555;
+}
+
+.metric-value {
+margin-top: 4px;
+font-weight: 700;
+word-break: break-all;
+}
+
+.filters {
+display: grid;
+grid-template-columns: 1fr;
+gap: 4px;
+}
+
+.table-wrap {
+max-height: 360px;
+overflow: auto;
+border: 1px solid #111;
+}
+
+table {
+border-collapse: collapse;
+width: 100%;
+}
+
+th,
+td {
+border: 1px solid #111;
+padding: 4px 6px;
+vertical-align: top;
+text-align: left;
+white-space: pre-wrap;
+}
+
+th {
+position: sticky;
+top: 0;
+background: #fff;
+z-index: 1;
+}
+
+.empty {
+padding: 8px;
+border: 1px solid #111;
+margin-bottom: 8px;
+}
+
+.hidden {
+display: none;
+}

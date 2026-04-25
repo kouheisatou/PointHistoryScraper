@@ -1,16 +1,20 @@
 {
 	"manifest_version": 3,
 	"name": "楽天ポイント履歴一括保存",
-	"version": "1.0.2",
-	"description": "楽天PointClubのポイント履歴をCSV形式で一括保存",
+	"version": "1.1.1",
+	"description": "楽天PointClubのポイント履歴をローカル保存し、期間指定でCSVエクスポート",
 	"action": {
 		"default_title": "RakutenPointHistoryDumper",
 		"default_popup": "popup.html"
 	},
 	"permissions": [
 		"tabs",
-		"storage"
+		"storage",
+		"sidePanel"
 	],
+	"side_panel": {
+		"default_path": "sidepanel.html"
+	},
 	"content_scripts": [
 		{
 			"matches": [

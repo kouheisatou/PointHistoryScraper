@@ -87,3 +87,21 @@ document.getElementById("exportCsvButton").addEventListener("click", async funct
 	const csv = rowsToCsv(filtered);
 	downloadCsv(csv, fromDate, toDate);
 });
+
+const openSidePanelButton = document.getElementById("openSidePanelButton");
+if (openSidePanelButton) {
+	openSidePanelButton.addEventListener("click", async () => {
+		try {
+			const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+			const activeTab = tabs[0];
+			if (!activeTab || typeof activeTab.windowId !== "number") {
+				window.alert("サイドパネルを開く対象のタブが見つかりません");
+				return;
+			}
+			await chrome.sidePanel.open({ windowId: activeTab.windowId });
+			window.close();
+		} catch (error) {
+			window.alert(`サイドパネルを開けませんでした: ${error.message}`);
+		}
+	});
+}
