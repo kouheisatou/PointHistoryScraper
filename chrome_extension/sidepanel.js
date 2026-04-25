@@ -172,13 +172,17 @@ const allMonths = new Set([...Object.keys(monthlyGain), ...Object.keys(monthlyCh
 const sortedMonths = [...allMonths].sort();
 const numMonths = Math.max(sortedMonths.length, 1);
 
+const dates = rows.map((r) => parseDateFromRow(r.date)).filter(Boolean).sort();
+const dateFrom = dates.length > 0 ? dates[0] : null;
+const dateTo = dates.length > 0 ? dates[dates.length - 1] : null;
+
 return {
 totalGain, totalCharge, totalUsed, totalInterest,
 yearGain, yearCharge, yearUsed,
 avgGain: Math.round(totalGain / numMonths),
 avgUsed: Math.round(totalUsed / numMonths),
 sortedMonths, monthlyGain, monthlyCharge, monthlyUsed,
-serviceGain,
+serviceGain, dateFrom, dateTo,
 };
 }
 
@@ -403,7 +407,6 @@ function makeSeries(g, c, u) {
 return [{ data: g, color: COLOR_GAIN }, { data: c, color: COLOR_CHARGE }, { data: u, color: COLOR_USED }];
 }
 
-// 表示中の年の1月から累計獲得を計算（年ごとに0リセット）
 // 12ヶ月ウィンドウのラベル生成 (yyyy/MM)
 function buildMonthlyWindow(page) {
 const now = new Date();
@@ -421,10 +424,14 @@ return labels;
 
 function buildMonthlyCumGain(stats, labels) {
 const cum = {};
+const firstLabel = labels[0];
 let total = 0;
-labels.forEach((m) => {
+stats.sortedMonths.forEach((m) => {
 total += (stats.monthlyGain[m] || 0);
-cum[m] = total;
+if (m >= firstLabel) cum[m] = total;
+});
+labels.forEach((m) => {
+if (!(m in cum)) cum[m] = total;
 });
 return cum;
 }
@@ -480,16 +487,47 @@ if (monthlyPage < 0) { monthlyPage++; drawMonthlyChart(); }
 
 // ── Service donut ──
 
+function formatDateJP(d) {
+if (!d) return "";
+const [y, m, day] = d.split("-");
+return `${y}年${parseInt(m, 10)}月${parseInt(day, 10)}日`;
+}
+
+function computeServiceGainForRange(rows, from, to) {
+const serviceGain = {};
+rows.forEach((row) => {
+const d = parseDateFromRow(row.date);
+if (!d) return;
+if (from && d < from) return;
+if (to && d > to) return;
+const type = classifyAction(row.action);
+if (type !== "gain") return;
+const point = parsePointValue(row.point);
+const service = row.service || "その他";
+serviceGain[service] = (serviceGain[service] || 0) + point;
+});
+return serviceGain;
+}
+
 function drawServiceDonut() {
 if (!lastStats) return;
-const r = setupCanvas(document.getElementById("chartService"), 0.7);
-if (!r) return;
-const { ctx, w, h } = r;
+const canvas = document.getElementById("chartService");
+const periodEl = document.getElementById("servicePeriod");
+const from = document.getElementById("donutFromDate").value || null;
+const to = document.getElementById("donutToDate").value || null;
+if (from && to) {
+periodEl.textContent = `${formatDateJP(from)} 〜 ${formatDateJP(to)}`;
+} else {
+periodEl.textContent = "";
+}
 
-const entries = Object.entries(lastStats.serviceGain).sort((a, b) => b[1] - a[1]);
+const serviceGain = computeServiceGainForRange(allRows, from, to);
+const entries = Object.entries(serviceGain).sort((a, b) => b[1] - a[1]);
 if (entries.length === 0) {
-ctx.fillStyle = "#aaa"; ctx.font = "12px sans-serif"; ctx.textAlign = "center";
-ctx.fillText("データがありません", w / 2, h / 2);
+const r = setupCanvas(canvas, 0.4);
+if (!r) return;
+r.ctx.fillStyle = "#aaa"; r.ctx.font = "12px sans-serif"; r.ctx.textAlign = "center";
+r.ctx.fillText("データがありません", r.w / 2, r.h / 2);
 return;
 }
 
@@ -498,14 +536,23 @@ const topN = entries.slice(0, 8);
 const otherSum = entries.slice(8).reduce((s, e) => s + e[1], 0);
 if (otherSum > 0) topN.push(["その他", otherSum]);
 
-const cx = w * 0.26;
-const cy = h / 2;
-const radius = Math.min(cx - 8, cy - 8);
-const inner = radius * 0.55;
+const r = setupCanvas(canvas, 1.0);
+if (!r) return;
+const { ctx, w, h } = r;
 
+const cx = w / 2;
+const cy = h / 2;
+const radius = Math.min(w, h) * 0.44;
+const inner = radius * 0.52;
+const labelR = (radius + inner) / 2;
+const outerLabelR = radius + 14;
+
+// Draw slices
 let angle = -Math.PI / 2;
-topN.forEach(([, val], i) => {
+const slices = [];
+topN.forEach(([name, val], i) => {
 const slice = (val / total) * Math.PI * 2;
+const midAngle = angle + slice / 2;
 ctx.fillStyle = DONUT_COLORS[i % DONUT_COLORS.length];
 ctx.beginPath();
 ctx.moveTo(cx + Math.cos(angle) * inner, cy + Math.sin(angle) * inner);
@@ -513,29 +560,163 @@ ctx.arc(cx, cy, radius, angle, angle + slice);
 ctx.arc(cx, cy, inner, angle + slice, angle, true);
 ctx.closePath();
 ctx.fill();
+slices.push({ name, val, slice, midAngle, color: DONUT_COLORS[i % DONUT_COLORS.length] });
 angle += slice;
 });
 
-ctx.fillStyle = "#333"; ctx.font = "bold 13px sans-serif";
-ctx.textAlign = "center"; ctx.textBaseline = "middle";
-ctx.fillText(fmt(total), cx, cy - 6);
-ctx.font = "10px sans-serif"; ctx.fillStyle = "#888";
-ctx.fillText("獲得合計", cx, cy + 10);
+// Labels
+slices.forEach((s) => {
+const pct = (s.val / total) * 100;
+const large = pct >= 6;
+const lx = cx + Math.cos(s.midAngle) * (large ? labelR : outerLabelR);
+const ly = cy + Math.sin(s.midAngle) * (large ? labelR : outerLabelR);
 
-const lx = w * 0.26 + radius + w * 0.087;
-const lineH = Math.min(22, (h - 16) / topN.length);
-ctx.textAlign = "left"; ctx.textBaseline = "top";
-topN.forEach(([name, val], i) => {
-const y = 10 + i * lineH;
-ctx.fillStyle = DONUT_COLORS[i % DONUT_COLORS.length];
-ctx.beginPath(); ctx.arc(lx + 5, y + 5, 4, 0, Math.PI * 2); ctx.fill();
-ctx.fillStyle = "#333"; ctx.font = "10px sans-serif";
-const pct = ((val / total) * 100).toFixed(1);
-const maxLen = Math.max(Math.floor((w - lx - 60) / 6), 4);
-const label = name.length > maxLen ? name.slice(0, maxLen) + "…" : name;
-ctx.fillText(`${label} ${pct}%`, lx + 14, y);
+ctx.save();
+ctx.textAlign = "center"; ctx.textBaseline = "middle";
+if (large) {
+ctx.fillStyle = "#fff";
+ctx.font = "bold 10px sans-serif";
+ctx.fillText(s.name, lx, ly - 6);
+ctx.font = "9px sans-serif";
+ctx.fillText(`${pct.toFixed(1)}% ${fmt(s.val)}P`, lx, ly + 7);
+} else {
+ctx.fillStyle = s.color;
+ctx.font = "8px sans-serif";
+const isRight = Math.cos(s.midAngle) >= 0;
+ctx.textAlign = isRight ? "left" : "right";
+ctx.fillText(`${s.name} ${pct.toFixed(1)}%`, lx + (isRight ? 4 : -4), ly - 5);
+ctx.fillStyle = "#888";
+ctx.fillText(`${fmt(s.val)}P`, lx + (isRight ? 4 : -4), ly + 6);
+}
+ctx.restore();
+});
+
+// Center text
+ctx.fillStyle = "#333"; ctx.font = "bold 14px sans-serif";
+ctx.textAlign = "center"; ctx.textBaseline = "middle";
+ctx.fillText(fmt(total), cx, cy - 7);
+ctx.font = "10px sans-serif"; ctx.fillStyle = "#888";
+ctx.fillText("獲得合計", cx, cy + 9);
+
+// Register donut hit areas for hover/click
+setupDonutListeners(canvas, cx, cy, inner, radius, slices, total);
+}
+
+function setupDonutListeners(canvas, cx, cy, inner, radius, slices, total) {
+const getSliceAtPoint = (mx, my) => {
+const dx = mx - cx;
+const dy = my - cy;
+const dist = Math.sqrt(dx * dx + dy * dy);
+if (dist < inner || dist > radius) return null;
+let a = Math.atan2(dy, dx);
+if (a < -Math.PI / 2) a += Math.PI * 2;
+let cumAngle = -Math.PI / 2;
+for (const s of slices) {
+if (a >= cumAngle && a < cumAngle + s.slice) return s;
+cumAngle += s.slice;
+}
+return null;
+};
+
+if (!canvas._donutBound) {
+canvas._donutBound = true;
+canvas.style.cursor = "pointer";
+canvas.addEventListener("mousemove", (e) => {
+const rect = canvas.getBoundingClientRect();
+const mx = e.clientX - rect.left;
+const my = e.clientY - rect.top;
+const hit = canvas._donutGetSlice?.(mx, my);
+if (hit) {
+const pct = ((hit.val / (canvas._donutTotal || 1)) * 100).toFixed(1);
+tooltipEl.textContent = `${hit.name}\n${pct}%  ${fmt(hit.val)}P`;
+tooltipEl.classList.remove("hidden");
+tooltipEl.style.left = "0px";
+tooltipEl.style.top = "0px";
+const tw = tooltipEl.offsetWidth;
+const th = tooltipEl.offsetHeight;
+const pw = document.body.clientWidth;
+let tx = e.clientX + 10;
+let ty = e.clientY - th - 6;
+if (tx + tw > pw) tx = Math.max(4, e.clientX - tw - 10);
+if (ty < 0) ty = e.clientY + 16;
+tooltipEl.style.left = tx + "px";
+tooltipEl.style.top = ty + "px";
+} else {
+tooltipEl.classList.add("hidden");
+}
+});
+canvas.addEventListener("mouseleave", () => tooltipEl.classList.add("hidden"));
+canvas.addEventListener("click", (e) => {
+const rect = canvas.getBoundingClientRect();
+const mx = e.clientX - rect.left;
+const my = e.clientY - rect.top;
+const hit = canvas._donutGetSlice?.(mx, my);
+if (hit && hit.name !== "その他") {
+activeServiceFilter = hit.name;
+document.getElementById("serviceShortcuts").querySelectorAll("button").forEach((b) => {
+b.classList.toggle("active", b.textContent === hit.name);
+});
+applyFilter();
+switchTab("history");
+}
 });
 }
+canvas._donutGetSlice = getSliceAtPoint;
+canvas._donutTotal = total;
+}
+
+/* ── Chart share (save as image) ── */
+
+function saveCanvasAsImage(canvas, title) {
+const dpr = window.devicePixelRatio || 1;
+const sw = canvas.width;
+const sh = canvas.height;
+const pad = Math.round(32 * dpr);
+const headerH = Math.round(24 * dpr);
+const lines = title.split("\n");
+const titleLineH = Math.round(22 * dpr);
+const titleH = titleLineH * lines.length;
+const tmp = document.createElement("canvas");
+tmp.width = sw + pad * 2;
+tmp.height = sh + pad + headerH + titleH + pad;
+const tctx = tmp.getContext("2d");
+// Background
+tctx.fillStyle = "#fff";
+tctx.fillRect(0, 0, tmp.width, tmp.height);
+// Header: 楽天ポイント獲得利用履歴
+tctx.fillStyle = "#888";
+tctx.font = `${12 * dpr}px sans-serif`;
+tctx.textAlign = "center";
+tctx.textBaseline = "middle";
+tctx.fillText("楽天ポイント獲得利用履歴", tmp.width / 2, pad + headerH / 2);
+// Title (multi-line)
+tctx.fillStyle = "#333";
+tctx.font = `bold ${14 * dpr}px sans-serif`;
+lines.forEach((line, i) => {
+if (i > 0) { tctx.font = `${11 * dpr}px sans-serif`; tctx.fillStyle = "#888"; }
+tctx.fillText(line, tmp.width / 2, pad + headerH + titleLineH * i + titleLineH / 2);
+});
+// Chart
+tctx.drawImage(canvas, pad, pad + headerH + titleH);
+// Download
+const link = document.createElement("a");
+link.download = title.replace(/\n/g, "_") + ".png";
+link.href = tmp.toDataURL("image/png");
+link.click();
+}
+
+document.getElementById("monthlyShare").addEventListener("click", () => {
+const title = document.getElementById("monthlyTitle").textContent;
+saveCanvasAsImage(document.getElementById("chartMonthly"), title);
+});
+document.getElementById("donutFromDate").addEventListener("change", () => drawServiceDonut());
+document.getElementById("donutToDate").addEventListener("change", () => drawServiceDonut());
+
+document.getElementById("serviceShare").addEventListener("click", () => {
+const period = document.getElementById("servicePeriod").textContent;
+const title = "サービス別獲得ポイント" + (period ? "\n" + period : "");
+saveCanvasAsImage(document.getElementById("chartService"), title);
+});
 
 /* ── History table ── */
 
@@ -581,6 +762,8 @@ const dates = allRows.map((r) => parseDateFromRow(r.date)).filter(Boolean).sort(
 if (dates.length === 0) return;
 document.getElementById("fromDate").value = dates[0];
 document.getElementById("toDate").value = dates[dates.length - 1];
+document.getElementById("donutFromDate").value = dates[0];
+document.getElementById("donutToDate").value = dates[dates.length - 1];
 buildYearShortcuts();
 buildServiceShortcuts();
 }

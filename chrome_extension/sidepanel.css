@@ -229,6 +229,12 @@ flex: 1;
 text-align: center;
 }
 
+.chart-period {
+font-size: 10px;
+color: #999;
+display: block;
+}
+
 .nav-btn {
 background: none;
 border: 1px solid #d0d0d0;
@@ -254,6 +260,22 @@ cursor: default;
 }
 
 .nav-btn:disabled:hover {
+background: none;
+}
+
+.share-btn {
+background: none;
+border: none;
+padding: 4px;
+cursor: pointer;
+opacity: 0.4;
+flex-shrink: 0;
+display: flex;
+align-items: center;
+}
+
+.share-btn:hover {
+opacity: 0.8;
 background: none;
 }
 

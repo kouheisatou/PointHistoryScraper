@@ -81,12 +81,25 @@
 <button id="monthlyPrev" class="nav-btn" type="button">&lt;</button>
 <h2 id="monthlyTitle">月別推移</h2>
 <button id="monthlyNext" class="nav-btn" type="button">&gt;</button>
+<button id="monthlyShare" class="share-btn" type="button" title="画像として保存"><img src="share.svg" alt="共有" width="16" height="16"></button>
 </div>
 <canvas id="chartMonthly"></canvas>
 </section>
 
 <section class="block chart-section">
+<div class="chart-header">
+<div>
 <h2>サービス別獲得ポイント</h2>
+<span id="servicePeriod" class="chart-period"></span>
+</div>
+<button id="serviceShare" class="share-btn" type="button" title="画像として保存"><img src="share.svg" alt="共有" width="16" height="16"></button>
+</div>
+<div class="filters" style="margin-bottom:8px;">
+<label for="donutFromDate">開始日</label>
+<input id="donutFromDate" type="date">
+<label for="donutToDate">終了日</label>
+<input id="donutToDate" type="date">
+</div>
 <canvas id="chartService"></canvas>
 </section>
 
