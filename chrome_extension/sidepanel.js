@@ -539,6 +539,102 @@ serviceGain[service] = (serviceGain[service] || 0) + point;
 return serviceGain;
 }
 
+function truncateToWidth(ctx, text, maxWidth) {
+if (maxWidth <= 0) return "";
+if (ctx.measureText(text).width <= maxWidth) return text;
+const ell = "…";
+const ellW = ctx.measureText(ell).width;
+if (ellW > maxWidth) return "";
+let lo = 0, hi = text.length;
+while (lo < hi) {
+const mid = (lo + hi + 1) >> 1;
+if (ctx.measureText(text.slice(0, mid)).width + ellW <= maxWidth) lo = mid;
+else hi = mid - 1;
+}
+return text.slice(0, lo) + ell;
+}
+
+function computeOuterLabelPositions(slices, cx, cy, outerLabelR, w, h, minSpacing, padTop, padBottom) {
+const result = new Map();
+const left = [];
+const right = [];
+slices.forEach((s, idx) => {
+if (!s._outer) return;
+const lx = cx + Math.cos(s.midAngle) * outerLabelR;
+const ly = cy + Math.sin(s.midAngle) * outerLabelR;
+const isRight = Math.cos(s.midAngle) >= 0;
+const item = { idx, lx, ly, isRight };
+(isRight ? right : left).push(item);
+});
+const place = (arr) => {
+arr.sort((a, b) => a.ly - b.ly);
+for (let i = 1; i < arr.length; i++) {
+if (arr[i].ly - arr[i - 1].ly < minSpacing) arr[i].ly = arr[i - 1].ly + minSpacing;
+}
+const maxY = h - padBottom;
+for (let i = arr.length - 1; i >= 0; i--) {
+if (arr[i].ly > maxY) arr[i].ly = maxY;
+if (i > 0 && arr[i].ly - arr[i - 1].ly < minSpacing) arr[i - 1].ly = arr[i].ly - minSpacing;
+}
+for (let i = 0; i < arr.length; i++) {
+if (arr[i].ly < padTop) arr[i].ly = padTop;
+if (i > 0 && arr[i].ly - arr[i - 1].ly < minSpacing) arr[i].ly = arr[i - 1].ly + minSpacing;
+}
+arr.forEach((it) => result.set(it.idx, { lx: it.lx, ly: it.ly, isRight: it.isRight }));
+};
+place(left);
+place(right);
+return result;
+}
+
+function drawDonutLabels(ctx, slices, total, cx, cy, labelR, outerLabelR, w, h) {
+slices.forEach((s, i) => { s._outer = ((s.val / total) * 100) < 6; });
+const outerPos = computeOuterLabelPositions(slices, cx, cy, outerLabelR, w, h, 26, 14, 14);
+slices.forEach((s, i) => {
+const pct = (s.val / total) * 100;
+const large = !s._outer;
+ctx.save();
+ctx.textBaseline = "middle";
+if (large) {
+const lx = cx + Math.cos(s.midAngle) * labelR;
+const ly = cy + Math.sin(s.midAngle) * labelR;
+ctx.textAlign = "center";
+ctx.lineJoin = "round";
+ctx.miterLimit = 2;
+ctx.strokeStyle = "rgba(0, 0, 0, 0.85)";
+ctx.fillStyle = "#fff";
+ctx.font = "bold 13px sans-serif";
+const nameMaxW = Math.min(labelR * 1.4, 140);
+const nameText = truncateToWidth(ctx, s.name, nameMaxW);
+ctx.lineWidth = 3;
+ctx.strokeText(nameText, lx, ly - 8);
+ctx.fillText(nameText, lx, ly - 8);
+ctx.font = "12px sans-serif";
+ctx.lineWidth = 2.5;
+const valText = `${pct.toFixed(1)}% ${fmt(s.val)}`;
+ctx.strokeText(valText, lx, ly + 9);
+ctx.fillText(valText, lx, ly + 9);
+} else {
+const pos = outerPos.get(i);
+if (!pos) { ctx.restore(); return; }
+const isRight = pos.isRight;
+ctx.textAlign = isRight ? "left" : "right";
+const ox = isRight ? 4 : -4;
+const margin = 6;
+const maxW = isRight ? Math.max(0, w - pos.lx - ox - margin) : Math.max(0, pos.lx + ox - margin);
+ctx.fillStyle = s.color;
+ctx.font = "bold 13px sans-serif";
+const nameText = truncateToWidth(ctx, s.name, maxW);
+ctx.fillText(nameText, pos.lx + ox, pos.ly - 8);
+ctx.fillStyle = "#888";
+ctx.font = "12px sans-serif";
+const valText = truncateToWidth(ctx, `${pct.toFixed(1)}% ${fmt(s.val)}`, maxW);
+ctx.fillText(valText, pos.lx + ox, pos.ly + 9);
+}
+ctx.restore();
+});
+}
+
 function drawServiceDonut() {
 if (!lastStats) return;
 const canvas = document.getElementById("chartService");
@@ -575,7 +671,7 @@ const cy = h / 2;
 const radius = Math.min(w, h) * 0.44;
 const inner = radius * 0.52;
 const labelR = (radius + inner) / 2;
-const outerLabelR = radius + 14;
+const outerLabelR = radius + 20;
 
 // Draw slices
 let angle = -Math.PI / 2;
@@ -595,38 +691,14 @@ angle += slice;
 });
 
 // Labels
-slices.forEach((s) => {
-const pct = (s.val / total) * 100;
-const large = pct >= 6;
-const lx = cx + Math.cos(s.midAngle) * (large ? labelR : outerLabelR);
-const ly = cy + Math.sin(s.midAngle) * (large ? labelR : outerLabelR);
-
-ctx.save();
-ctx.textAlign = "center"; ctx.textBaseline = "middle";
-if (large) {
-ctx.fillStyle = "#fff";
-ctx.font = "bold 10px sans-serif";
-ctx.fillText(s.name, lx, ly - 6);
-ctx.font = "9px sans-serif";
-ctx.fillText(`${pct.toFixed(1)}% ${fmt(s.val)}`, lx, ly + 7);
-} else {
-ctx.fillStyle = s.color;
-ctx.font = "8px sans-serif";
-const isRight = Math.cos(s.midAngle) >= 0;
-ctx.textAlign = isRight ? "left" : "right";
-ctx.fillText(`${s.name} ${pct.toFixed(1)}%`, lx + (isRight ? 4 : -4), ly - 5);
-ctx.fillStyle = "#888";
-ctx.fillText(`${fmt(s.val)}`, lx + (isRight ? 4 : -4), ly + 6);
-}
-ctx.restore();
-});
+drawDonutLabels(ctx, slices, total, cx, cy, labelR, outerLabelR, w, h);
 
 // Center text
-ctx.fillStyle = "#333"; ctx.font = "bold 14px sans-serif";
+ctx.fillStyle = "#333"; ctx.font = "bold 18px sans-serif";
 ctx.textAlign = "center"; ctx.textBaseline = "middle";
-ctx.fillText(fmt(total), cx, cy - 7);
-ctx.font = "10px sans-serif"; ctx.fillStyle = "#888";
-ctx.fillText("獲得合計", cx, cy + 9);
+ctx.fillText(fmt(total), cx, cy - 9);
+ctx.font = "12px sans-serif"; ctx.fillStyle = "#888";
+ctx.fillText("獲得合計", cx, cy + 12);
 
 // Register donut hit areas for hover/click
 setupDonutListeners(canvas, cx, cy, inner, radius, slices, total);
@@ -757,7 +829,7 @@ const cy = h / 2;
 const radius = Math.min(w, h) * 0.44;
 const inner = radius * 0.52;
 const labelR = (radius + inner) / 2;
-const outerLabelR = radius + 14;
+const outerLabelR = radius + 20;
 
 let angle = -Math.PI / 2;
 const slices = [];
@@ -775,84 +847,368 @@ slices.push({ name, val, slice, midAngle, color: DONUT_COLORS[i % DONUT_COLORS.l
 angle += slice;
 });
 
-slices.forEach((s) => {
-const pct = (s.val / total) * 100;
-const large = pct >= 6;
-const lx = cx + Math.cos(s.midAngle) * (large ? labelR : outerLabelR);
-const ly = cy + Math.sin(s.midAngle) * (large ? labelR : outerLabelR);
+drawDonutLabels(ctx, slices, total, cx, cy, labelR, outerLabelR, w, h);
 
-ctx.save();
+ctx.fillStyle = "#333"; ctx.font = "bold 18px sans-serif";
 ctx.textAlign = "center"; ctx.textBaseline = "middle";
-if (large) {
-ctx.fillStyle = "#fff";
-ctx.font = "bold 10px sans-serif";
-ctx.fillText(s.name, lx, ly - 6);
-ctx.font = "9px sans-serif";
-ctx.fillText(`${pct.toFixed(1)}% ${fmt(s.val)}`, lx, ly + 7);
-} else {
-ctx.fillStyle = s.color;
-ctx.font = "8px sans-serif";
-const isRight = Math.cos(s.midAngle) >= 0;
-ctx.textAlign = isRight ? "left" : "right";
-ctx.fillText(`${s.name} ${pct.toFixed(1)}%`, lx + (isRight ? 4 : -4), ly - 5);
-ctx.fillStyle = "#888";
-ctx.fillText(`${fmt(s.val)}`, lx + (isRight ? 4 : -4), ly + 6);
-}
-ctx.restore();
-});
-
-ctx.fillStyle = "#333"; ctx.font = "bold 14px sans-serif";
-ctx.textAlign = "center"; ctx.textBaseline = "middle";
-ctx.fillText(fmt(total), cx, cy - 7);
-ctx.font = "10px sans-serif"; ctx.fillStyle = "#888";
-ctx.fillText("利用合計", cx, cy + 9);
+ctx.fillText(fmt(total), cx, cy - 9);
+ctx.font = "12px sans-serif"; ctx.fillStyle = "#888";
+ctx.fillText("利用合計", cx, cy + 12);
 
 setupDonutListeners(canvas, cx, cy, inner, radius, slices, total);
 }
 
 /* ── Chart share (save as image) ── */
 
-function saveCanvasAsImage(canvas, title) {
+const SHARE_BRAND_TITLE = "楽天ポイント履歴一括保存";
+const SHARE_FOOTER_TEXT = "Chromeウェブストアで「楽天ポイント履歴一括保存」を検索";
+const X_INTENT_HASHTAG = "楽天ポイント履歴一括保存";
+const STORE_URL = "https://share.google/zKFhTSTBqN4y7cy0A";
+
+let cachedIconImage = null;
+function loadBrandIcon() {
+if (cachedIconImage) return Promise.resolve(cachedIconImage);
+return new Promise((resolve, reject) => {
+const img = new Image();
+img.onload = () => { cachedIconImage = img; resolve(img); };
+img.onerror = reject;
+img.src = "icon.png";
+});
+}
+
+async function buildBrandedImage(contentCanvas, subtitle) {
+const icon = await loadBrandIcon().catch(() => null);
 const dpr = window.devicePixelRatio || 1;
-const sw = canvas.width;
-const sh = canvas.height;
-const pad = Math.round(32 * dpr);
-const headerH = Math.round(24 * dpr);
-const lines = title.split("\n");
-const titleLineH = Math.round(22 * dpr);
-const titleH = titleLineH * lines.length;
+const sw = contentCanvas.width;
+const sh = contentCanvas.height;
+const padX = Math.round(28 * dpr);
+const padY = Math.round(24 * dpr);
+const iconSize = Math.round(36 * dpr);
+const brandTitleSize = Math.round(20 * dpr);
+const headerGap = Math.round(12 * dpr);
+const headerH = Math.max(iconSize, Math.round(brandTitleSize * 1.2));
+const subtitleLines = subtitle ? subtitle.split("\n") : [];
+const subtitleLineH = Math.round(20 * dpr);
+const subtitleH = subtitleLines.length > 0 ? subtitleLineH * subtitleLines.length + Math.round(8 * dpr) : 0;
+const footerSize = Math.round(10 * dpr);
+const footerH = Math.round(28 * dpr);
+
 const tmp = document.createElement("canvas");
-tmp.width = sw + pad * 2;
-tmp.height = sh + pad + headerH + titleH + pad;
+tmp.width = sw + padX * 2;
+tmp.height = padY + headerH + headerGap + subtitleH + sh + footerH + padY;
 const tctx = tmp.getContext("2d");
-// Background
-tctx.fillStyle = "#fff";
+
+tctx.fillStyle = "#ffffff";
 tctx.fillRect(0, 0, tmp.width, tmp.height);
-// Header: 楽天ポイント獲得利用履歴
-tctx.fillStyle = "#888";
-tctx.font = `${12 * dpr}px sans-serif`;
+
+const brandTitle = SHARE_BRAND_TITLE;
+tctx.font = `700 ${brandTitleSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+const titleW = tctx.measureText(brandTitle).width;
+const groupW = (icon ? iconSize + Math.round(10 * dpr) : 0) + titleW;
+const groupX = (tmp.width - groupW) / 2;
+const headerY = padY;
+
+if (icon) {
+tctx.drawImage(icon, groupX, headerY + (headerH - iconSize) / 2, iconSize, iconSize);
+}
+tctx.fillStyle = "#222";
+tctx.textAlign = "left";
+tctx.textBaseline = "middle";
+tctx.fillText(brandTitle, groupX + (icon ? iconSize + Math.round(10 * dpr) : 0), headerY + headerH / 2);
+
+let cursorY = headerY + headerH + headerGap;
+
+if (subtitleLines.length > 0) {
 tctx.textAlign = "center";
 tctx.textBaseline = "middle";
-tctx.fillText("楽天ポイント獲得利用履歴", tmp.width / 2, pad + headerH / 2);
-// Title (multi-line)
-tctx.fillStyle = "#333";
-tctx.font = `bold ${14 * dpr}px sans-serif`;
-lines.forEach((line, i) => {
-if (i > 0) { tctx.font = `${11 * dpr}px sans-serif`; tctx.fillStyle = "#888"; }
-tctx.fillText(line, tmp.width / 2, pad + headerH + titleLineH * i + titleLineH / 2);
+subtitleLines.forEach((line, i) => {
+if (i === 0) {
+tctx.fillStyle = "#444";
+tctx.font = `600 ${Math.round(13 * dpr)}px sans-serif`;
+} else {
+tctx.fillStyle = "#888";
+tctx.font = `${Math.round(11 * dpr)}px sans-serif`;
+}
+tctx.fillText(line, tmp.width / 2, cursorY + subtitleLineH * i + subtitleLineH / 2);
 });
-// Chart
-tctx.drawImage(canvas, pad, pad + headerH + titleH);
-// Download
+cursorY += subtitleH;
+}
+
+tctx.drawImage(contentCanvas, padX, cursorY);
+cursorY += sh;
+
+tctx.fillStyle = "#9ca3af";
+tctx.font = `${footerSize}px sans-serif`;
+tctx.textAlign = "right";
+tctx.textBaseline = "middle";
+tctx.fillText(SHARE_FOOTER_TEXT, tmp.width - padX, cursorY + footerH / 2 + Math.round(2 * dpr));
+
+return tmp;
+}
+
+function downloadCanvas(canvas, filename) {
 const link = document.createElement("a");
-link.download = title.replace(/\n/g, "_") + ".png";
-link.href = tmp.toDataURL("image/png");
+link.download = filename;
+link.href = canvas.toDataURL("image/png");
 link.click();
+}
+
+function canvasToBlob(canvas) {
+return new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+}
+
+function showShareToast(message, ms = 4500) {
+const el = document.getElementById("shareToast");
+if (!el) return;
+el.textContent = message;
+el.classList.remove("hidden");
+requestAnimationFrame(() => el.classList.add("show"));
+clearTimeout(showShareToast._t);
+showShareToast._t = setTimeout(() => {
+el.classList.remove("show");
+setTimeout(() => el.classList.add("hidden"), 250);
+}, ms);
+}
+
+function showInfoDialog(title, message, opts = {}) {
+return new Promise((resolve) => {
+document.getElementById("infoTitle").textContent = title;
+document.getElementById("infoMessage").innerHTML = message;
+const okBtn = document.getElementById("infoOk");
+okBtn.textContent = opts.okLabel || "OK";
+const overlay = document.getElementById("infoOverlay");
+overlay.classList.remove("hidden");
+const close = (confirmed) => {
+overlay.classList.add("hidden");
+okBtn.removeEventListener("click", onOk);
+document.getElementById("infoClose").removeEventListener("click", onCancel);
+overlay.removeEventListener("click", outsideClick);
+resolve(confirmed);
+};
+const onOk = () => {
+if (typeof opts.onConfirm === "function") opts.onConfirm();
+close(true);
+};
+const onCancel = () => close(false);
+const outsideClick = (e) => { if (e.target === overlay) close(false); };
+okBtn.addEventListener("click", onOk);
+document.getElementById("infoClose").addEventListener("click", onCancel);
+overlay.addEventListener("click", outsideClick);
+});
+}
+
+async function saveCanvasAsImage(canvas, title) {
+const branded = await buildBrandedImage(canvas, title);
+const filename = (title || "share").replace(/\n/g, "_") + ".png";
+downloadCanvas(branded, filename);
+}
+
+async function shareCanvasToX(canvas, subtitle, tweetText) {
+const branded = await buildBrandedImage(canvas, subtitle);
+const intent = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(STORE_URL)}`;
+let copied = false;
+try {
+const blob = await canvasToBlob(branded);
+if (blob && navigator.clipboard && window.ClipboardItem) {
+await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+copied = true;
+}
+} catch (e) {
+copied = false;
+}
+window.open(intent, "_blank", "noopener");
+if (!copied) {
+const filename = (subtitle || "share").replace(/\n/g, "_") + ".png";
+downloadCanvas(branded, filename);
+showInfoDialog(
+"Xに共有",
+`<div class="dialog-headline">Xの投稿画面に画像を添付してください</div>
+<p class="dialog-subtext">画像をダウンロードフォルダに保存しました。<br>Xの投稿画面の画像追加から添付できます。</p>`
+);
+} else {
+showInfoDialog(
+"Xに共有",
+`<div class="dialog-headline">Xの投稿画面で画像を貼り付けてください</div>
+<div class="dialog-shortcut"><kbd>⌘V</kbd>（Windowsは <kbd>Ctrl</kbd> + <kbd>V</kbd>）</div>
+<p class="dialog-subtext">画像はクリップボードにコピー済みです。<br>Xの投稿画面が新しいタブで開きました。</p>`
+);
+}
+}
+
+/* ── Summary share canvas ── */
+
+function drawSummaryCanvas(metrics, opts = {}) {
+const dpr = window.devicePixelRatio || 1;
+const cols = 3;
+const rows = Math.ceil(metrics.length / cols);
+const cellW = Math.round(180 * dpr);
+const cellH = Math.round(74 * dpr);
+const gap = Math.round(10 * dpr);
+const padX = Math.round(8 * dpr);
+const padY = Math.round(8 * dpr);
+
+const canvas = document.createElement("canvas");
+canvas.width = padX * 2 + cellW * cols + gap * (cols - 1);
+canvas.height = padY * 2 + cellH * rows + gap * (rows - 1);
+const ctx = canvas.getContext("2d");
+
+ctx.fillStyle = "#edf0f5";
+ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+metrics.forEach((m, i) => {
+const c = i % cols;
+const r = Math.floor(i / cols);
+const x = padX + c * (cellW + gap);
+const y = padY + r * (cellH + gap);
+const radius = Math.round(10 * dpr);
+
+ctx.fillStyle = "#eef1f6";
+roundRect(ctx, x, y, cellW, cellH, radius);
+ctx.fill();
+
+ctx.strokeStyle = "rgba(205, 210, 218, 0.55)";
+ctx.lineWidth = Math.max(1, Math.round(1 * dpr));
+ctx.stroke();
+
+ctx.fillStyle = "#8a929e";
+ctx.font = `${Math.round(11 * dpr)}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+ctx.textAlign = "left";
+ctx.textBaseline = "top";
+ctx.fillText(m.label, x + Math.round(12 * dpr), y + Math.round(12 * dpr));
+
+ctx.fillStyle = m.color || "#444";
+ctx.font = `700 ${Math.round(20 * dpr)}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+ctx.textBaseline = "alphabetic";
+ctx.fillText(m.value, x + Math.round(12 * dpr), y + cellH - Math.round(14 * dpr));
+});
+
+return canvas;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+ctx.beginPath();
+ctx.moveTo(x + r, y);
+ctx.lineTo(x + w - r, y);
+ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+ctx.lineTo(x + w, y + h - r);
+ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+ctx.lineTo(x + r, y + h);
+ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+ctx.lineTo(x, y + r);
+ctx.quadraticCurveTo(x, y, x + r, y);
+ctx.closePath();
+}
+
+function getTotalSummaryMetrics() {
+return [
+{ label: "獲得合計", value: document.getElementById("metricTotalGain").textContent, color: "#1b8a3e" },
+{ label: "累計チャージ額", value: document.getElementById("metricTotalCharge").textContent, color: "#1565c0" },
+{ label: "合計利用額", value: document.getElementById("metricTotalUsed").textContent, color: "#c62828" },
+{ label: "ポイント利息累計", value: document.getElementById("metricInterest").textContent, color: "#444" },
+{ label: "月平均獲得", value: document.getElementById("metricAvgGain").textContent, color: "#444" },
+{ label: "月平均利用", value: document.getElementById("metricAvgUsed").textContent, color: "#444" },
+];
+}
+
+function getYearSummaryMetrics() {
+return [
+{ label: "獲得合計", value: document.getElementById("metricYearGain").textContent, color: "#1b8a3e" },
+{ label: "累計チャージ額", value: document.getElementById("metricYearCharge").textContent, color: "#1565c0" },
+{ label: "合計利用額", value: document.getElementById("metricYearUsed").textContent, color: "#c62828" },
+];
+}
+
+function buildTweetTextForSummary(periodLabel, metrics) {
+const lines = [`楽天ポイントの${periodLabel}サマリー`, ""];
+metrics.forEach((m) => lines.push(`${m.label}: ${m.value}`));
+lines.push("", `#${X_INTENT_HASHTAG}`);
+return lines.join("\n");
+}
+
+function computeTotalsForPeriod(rows, from, to) {
+let gain = 0, charge = 0, used = 0;
+rows.forEach((row) => {
+const d = parseDateFromRow(row.date);
+if (!d) return;
+if (from && d < from) return;
+if (to && d > to) return;
+const point = parsePointValue(row.point);
+const type = classifyAction(row.action);
+if (type === "gain") gain += point;
+else if (type === "charge") charge += point;
+else if (type === "used") used += point;
+});
+return { gain, charge, used };
+}
+
+function buildChartTweet(chartLabel, totals) {
+const lines = [chartLabel, ""];
+lines.push(`獲得: ${fmt(totals.gain)}`, `チャージ: ${fmt(totals.charge)}`, `利用: ${fmt(totals.used)}`);
+lines.push("", `#${X_INTENT_HASHTAG}`);
+return lines.join("\n");
+}
+
+function buildBreakdownTweet(chartLabel, breakdown) {
+const lines = [chartLabel];
+const topN = breakdown.slice(0, 3);
+topN.forEach(([name, val], i) => {
+lines.push(`${i + 1}位 ${name}: ${fmt(val)}`);
+});
+lines.push("", `#${X_INTENT_HASHTAG}`);
+return lines.join("\n");
+}
+
+function getMonthlyChartRange() {
+const labels = buildMonthlyWindow(monthlyPage);
+const first = labels[0];
+const last = labels[labels.length - 1];
+const [fy, fm] = first.split("/").map(Number);
+const [ly, lm] = last.split("/").map(Number);
+const lastDay = new Date(ly, lm, 0).getDate();
+return {
+from: `${fy}-${String(fm).padStart(2, "0")}-01`,
+to: `${ly}-${String(lm).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`,
+label: `${fy}/${fm} 〜 ${ly}/${lm}`,
+};
+}
+
+function getDonutPeriodLabel(fromVal, toVal) {
+if (fromVal && toVal) return `${formatDateJP(fromVal)} 〜 ${formatDateJP(toVal)}`;
+const dates = allRows.map((r) => parseDateFromRow(r.date)).filter(Boolean).sort();
+if (dates.length === 0) return "";
+return `${formatDateJP(dates[0])} 〜 ${formatDateJP(dates[dates.length - 1])}`;
 }
 
 document.getElementById("monthlyShare").addEventListener("click", () => {
 const title = document.getElementById("monthlyTitle").textContent;
 saveCanvasAsImage(document.getElementById("chartMonthly"), title);
+});
+document.getElementById("monthlyShareX").addEventListener("click", () => {
+const title = document.getElementById("monthlyTitle").textContent;
+const { from, to } = getMonthlyChartRange();
+const totals = computeTotalsForPeriod(allRows, from, to);
+shareCanvasToX(document.getElementById("chartMonthly"), title, buildChartTweet("楽天ポイント月別推移", totals));
+});
+
+document.getElementById("totalShareImage").addEventListener("click", () => {
+const metrics = getTotalSummaryMetrics();
+const canvas = drawSummaryCanvas(metrics);
+saveCanvasAsImage(canvas, "全期間サマリー");
+});
+document.getElementById("totalShareX").addEventListener("click", () => {
+const metrics = getTotalSummaryMetrics();
+const canvas = drawSummaryCanvas(metrics);
+shareCanvasToX(canvas, "全期間サマリー", buildTweetTextForSummary("全期間", metrics));
+});
+document.getElementById("yearShareImage").addEventListener("click", () => {
+const metrics = getYearSummaryMetrics();
+const canvas = drawSummaryCanvas(metrics);
+saveCanvasAsImage(canvas, "今年のサマリー");
+});
+document.getElementById("yearShareX").addEventListener("click", () => {
+const metrics = getYearSummaryMetrics();
+const canvas = drawSummaryCanvas(metrics);
+shareCanvasToX(canvas, "今年のサマリー", buildTweetTextForSummary("今年", metrics));
 });
 document.getElementById("donutPeriodToggle").addEventListener("click", () => {
 const panel = document.getElementById("donutPeriodPanel");
@@ -868,6 +1224,15 @@ const period = document.getElementById("servicePeriod").textContent;
 const title = "サービス別獲得ポイント" + (period ? "\n" + period : "");
 saveCanvasAsImage(document.getElementById("chartService"), title);
 });
+document.getElementById("serviceShareX").addEventListener("click", () => {
+const period = document.getElementById("servicePeriod").textContent;
+const title = "サービス別獲得ポイント" + (period ? "\n" + period : "");
+const fromVal = document.getElementById("donutFromDate").value || null;
+const toVal = document.getElementById("donutToDate").value || null;
+const serviceGain = computeServiceGainForRange(allRows, fromVal, toVal);
+const entries = Object.entries(serviceGain).sort((a, b) => b[1] - a[1]);
+shareCanvasToX(document.getElementById("chartService"), title, buildBreakdownTweet("楽天ポイント獲得内訳", entries));
+});
 document.getElementById("usedDonutPeriodToggle").addEventListener("click", () => {
 const panel = document.getElementById("usedDonutPeriodPanel");
 const btn = document.getElementById("usedDonutPeriodToggle");
@@ -880,6 +1245,15 @@ document.getElementById("usedShare").addEventListener("click", () => {
 const period = document.getElementById("usedPeriod").textContent;
 const title = "詳細別利用ポイント" + (period ? "\n" + period : "");
 saveCanvasAsImage(document.getElementById("chartUsed"), title);
+});
+document.getElementById("usedShareX").addEventListener("click", () => {
+const period = document.getElementById("usedPeriod").textContent;
+const title = "詳細別利用ポイント" + (period ? "\n" + period : "");
+const fromVal = document.getElementById("usedDonutFromDate").value || null;
+const toVal = document.getElementById("usedDonutToDate").value || null;
+const titleUsed = computeTitleUsedForRange(allRows, fromVal, toVal);
+const entries = Object.entries(titleUsed).sort((a, b) => b[1] - a[1]);
+shareCanvasToX(document.getElementById("chartUsed"), title, buildBreakdownTweet("楽天ポイント利用内訳", entries));
 });
 
 /* ── History table ── */
@@ -1212,8 +1586,80 @@ chrome.storage.onChanged.addListener((changes, area) => {
 if (area === "local" && Object.prototype.hasOwnProperty.call(changes, STORAGE_KEY)) refreshRows();
 });
 
+/* ── Backup notification settings ── */
+
+const BACKUP_SETTINGS_KEY = "backupNotificationSettings";
+const BACKUP_FIRST_RUN_KEY = "backupNotificationFirstRunDone";
+const DEFAULT_INTERVAL_DAYS = 30;
+
+function getBackupSettings() {
+return new Promise((resolve) => {
+chrome.storage.local.get([BACKUP_SETTINGS_KEY], (r) => {
+const s = r[BACKUP_SETTINGS_KEY];
+resolve(s && typeof s === "object"
+? { enabled: !!s.enabled, intervalDays: s.intervalDays || DEFAULT_INTERVAL_DAYS }
+: { enabled: false, intervalDays: DEFAULT_INTERVAL_DAYS });
+});
+});
+}
+
+function saveBackupSettings(settings) {
+return new Promise((resolve) => {
+chrome.storage.local.set({ [BACKUP_SETTINGS_KEY]: settings }, () => {
+chrome.runtime.sendMessage({ type: "setBackupSchedule", settings }, () => resolve());
+});
+});
+}
+
+function showOverlay(id) {
+document.getElementById(id).classList.remove("hidden");
+}
+function hideOverlay(id) {
+document.getElementById(id).classList.add("hidden");
+}
+
+async function openSettingsDialog() {
+const s = await getBackupSettings();
+document.getElementById("backupEnabled").checked = s.enabled;
+document.getElementById("backupInterval").value = String(s.intervalDays);
+showOverlay("settingsOverlay");
+}
+
+document.getElementById("settingsButton").addEventListener("click", openSettingsDialog);
+document.getElementById("settingsClose").addEventListener("click", () => hideOverlay("settingsOverlay"));
+document.getElementById("settingsOverlay").addEventListener("click", (e) => {
+if (e.target.id === "settingsOverlay") hideOverlay("settingsOverlay");
+});
+document.getElementById("settingsSave").addEventListener("click", async () => {
+const enabled = document.getElementById("backupEnabled").checked;
+const intervalDays = parseInt(document.getElementById("backupInterval").value, 10) || DEFAULT_INTERVAL_DAYS;
+await saveBackupSettings({ enabled, intervalDays });
+hideOverlay("settingsOverlay");
+showShareToast(enabled ? "バックアップ通知をONにしました。" : "バックアップ通知をOFFにしました。", 2500);
+});
+
+document.getElementById("firstRunAccept").addEventListener("click", async () => {
+const intervalDays = parseInt(document.getElementById("firstRunInterval").value, 10) || DEFAULT_INTERVAL_DAYS;
+await saveBackupSettings({ enabled: true, intervalDays });
+chrome.storage.local.set({ [BACKUP_FIRST_RUN_KEY]: true });
+hideOverlay("firstRunOverlay");
+showShareToast("バックアップ通知をONにしました。", 2500);
+});
+document.getElementById("firstRunDecline").addEventListener("click", () => {
+chrome.storage.local.set({ [BACKUP_FIRST_RUN_KEY]: true });
+hideOverlay("firstRunOverlay");
+});
+
+function showFirstRunIfNeeded() {
+chrome.storage.local.get([BACKUP_FIRST_RUN_KEY], (r) => {
+if (r[BACKUP_FIRST_RUN_KEY]) return;
+showOverlay("firstRunOverlay");
+});
+}
+
 // レイアウト完了後に初回描画
 requestAnimationFrame(() => requestAnimationFrame(() => {
 refreshRows();
 showExportCalloutIfNeeded();
+showFirstRunIfNeeded();
 }));
