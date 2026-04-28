@@ -1582,6 +1582,7 @@ const forceFull = document.getElementById("forceFullScrape").checked;
 const lastScrapeDate = await getStoredValue(LAST_SCRAPE_DATE_KEY);
 if (!forceFull && lastScrapeDate === getCurrentDateString()) {
 const rows = await getStorageRows();
+showShareToast("本日取得済みのためスキップしてCSVを出力します。", 3000);
 await downloadAllRowsCsv(rows);
 return;
 }
