@@ -1,4 +1,9 @@
 const STORAGE_KEY = "rakutenPointHistoryRows";
+const LAST_SCRAPE_DATE_KEY = "rakutenPointHistoryLastScrapeDate";
+const LAST_SCRAPE_ADDED_COUNT_KEY = "rakutenPointHistoryLastScrapeAddedCount";
+const SCRAPE_SESSION_ADDED_KEY = "rakutenPointHistorySessionAddedCount";
+const SCRAPE_CANCEL_KEY = "rakutenPointHistoryCancelScrape";
+const PENDING_EXPORT_KEY = "rakutenPointHistoryPendingExport";
 const COLUMNS = ["date", "service", "title", "action", "point", "note"];
 const UTF8_BOM = new Uint8Array([0xEF, 0xBB, 0xBF]);
 
@@ -1520,25 +1525,94 @@ updateDashboard(allRows);
 setDefaultDates();
 renderHistoryTable(filteredRows);
 } catch (e) {
-window.alert("履歴の取得に失敗しました: " + e.message);
+showInfoDialog("エラー", "履歴の取得に失敗しました: " + e.message);
 }
 }
 
-document.getElementById("startScrapeButton").addEventListener("click", () => {
-window.open("https://point.rakuten.co.jp/history/?page=1&scrape=1#point_history");
+function getStoredValue(key) {
+return new Promise((resolve) => {
+chrome.storage.local.get([key], (r) => resolve(r[key]));
 });
-document.getElementById("exportCsvButton").addEventListener("click", () => {
+}
+
+async function downloadAllRowsCsv(rows) {
+if (!rows || rows.length === 0) {
+await showInfoDialog("エクスポート", "エクスポートできる履歴がありません");
+return;
+}
+const sorted = sortRowsByDate(rows);
+downloadCsv(rowsToCsv(sorted), null, null);
+}
+
+function setScrapingButtonState(isScraping) {
+const btn = document.getElementById("dashboardExportButton");
+const checkbox = document.getElementById("forceFullScrape");
+if (isScraping) {
+btn.classList.add("scraping");
+btn.innerHTML = '<span class="progress-spinner" aria-hidden="true"></span><span>取得中止</span>';
+checkbox.disabled = true;
+} else {
+btn.classList.remove("scraping");
+btn.textContent = "全期間CSVエクスポート";
+checkbox.disabled = false;
+}
+}
+
+async function cancelScrape() {
+await new Promise((resolve) => {
+chrome.storage.local.set({
+[SCRAPE_CANCEL_KEY]: true,
+[PENDING_EXPORT_KEY]: false,
+}, resolve);
+});
+setScrapingButtonState(false);
+showShareToast("取得を中止しました。", 2500);
+setTimeout(() => {
+chrome.storage.local.remove([SCRAPE_CANCEL_KEY, SCRAPE_SESSION_ADDED_KEY]);
+}, 1500);
+}
+
+async function handleDashboardExport() {
+const btn = document.getElementById("dashboardExportButton");
+if (btn.classList.contains("scraping")) {
+await cancelScrape();
+return;
+}
+const forceFull = document.getElementById("forceFullScrape").checked;
+const lastScrapeDate = await getStoredValue(LAST_SCRAPE_DATE_KEY);
+if (!forceFull && lastScrapeDate === getCurrentDateString()) {
+const rows = await getStorageRows();
+await downloadAllRowsCsv(rows);
+return;
+}
+await new Promise((resolve) => {
+chrome.storage.local.set({
+[PENDING_EXPORT_KEY]: true,
+[SCRAPE_SESSION_ADDED_KEY]: 0,
+}, resolve);
+});
+chrome.storage.local.remove([SCRAPE_CANCEL_KEY]);
+setScrapingButtonState(true);
+showShareToast("履歴を取得中です。完了後に自動でCSVをダウンロードします。", 4000);
+const url = forceFull
+? "https://point.rakuten.co.jp/history/?page=1&scrape=1&full=1#point_history"
+: "https://point.rakuten.co.jp/history/?page=1&scrape=1#point_history";
+window.open(url);
+}
+
+document.getElementById("dashboardExportButton").addEventListener("click", handleDashboardExport);
+document.getElementById("exportCsvButton").addEventListener("click", async () => {
 const from = document.getElementById("fromDate").value || null;
 const to = document.getElementById("toDate").value || null;
-if (from && to && from > to) { window.alert("開始日は終了日以前を指定してください"); return; }
-if (filteredRows.length === 0) { window.alert("エクスポートできる履歴がありません"); return; }
+if (from && to && from > to) { await showInfoDialog("エクスポート", "開始日は終了日以前を指定してください"); return; }
+if (filteredRows.length === 0) { await showInfoDialog("エクスポート", "エクスポートできる履歴がありません"); return; }
 downloadCsv(rowsToCsv(filteredRows), from, to);
 });
-document.getElementById("exportXlsxButton").addEventListener("click", () => {
+document.getElementById("exportXlsxButton").addEventListener("click", async () => {
 const from = document.getElementById("fromDate").value || null;
 const to = document.getElementById("toDate").value || null;
-if (from && to && from > to) { window.alert("開始日は終了日以前を指定してください"); return; }
-if (filteredRows.length === 0) { window.alert("エクスポートできる履歴がありません"); return; }
+if (from && to && from > to) { await showInfoDialog("エクスポート", "開始日は終了日以前を指定してください"); return; }
+if (filteredRows.length === 0) { await showInfoDialog("エクスポート", "エクスポートできる履歴がありません"); return; }
 downloadXlsx(filteredRows, from, to);
 });
 document.getElementById("fromDate").addEventListener("change", () => {
@@ -1583,83 +1657,31 @@ setTimeout(() => el.classList.add("hidden"), 6000);
 }
 
 chrome.storage.onChanged.addListener((changes, area) => {
-if (area === "local" && Object.prototype.hasOwnProperty.call(changes, STORAGE_KEY)) refreshRows();
-});
-
-/* ── Backup notification settings ── */
-
-const BACKUP_SETTINGS_KEY = "backupNotificationSettings";
-const BACKUP_FIRST_RUN_KEY = "backupNotificationFirstRunDone";
-const DEFAULT_INTERVAL_DAYS = 30;
-
-function getBackupSettings() {
-return new Promise((resolve) => {
-chrome.storage.local.get([BACKUP_SETTINGS_KEY], (r) => {
-const s = r[BACKUP_SETTINGS_KEY];
-resolve(s && typeof s === "object"
-? { enabled: !!s.enabled, intervalDays: s.intervalDays || DEFAULT_INTERVAL_DAYS }
-: { enabled: false, intervalDays: DEFAULT_INTERVAL_DAYS });
-});
+if (area !== "local") return;
+if (Object.prototype.hasOwnProperty.call(changes, STORAGE_KEY)) refreshRows();
+if (Object.prototype.hasOwnProperty.call(changes, LAST_SCRAPE_DATE_KEY)) {
+chrome.storage.local.get([PENDING_EXPORT_KEY, LAST_SCRAPE_ADDED_COUNT_KEY], async (r) => {
+if (!r[PENDING_EXPORT_KEY]) return;
+chrome.storage.local.set({ [PENDING_EXPORT_KEY]: false });
+setScrapingButtonState(false);
+const addedCount = typeof r[LAST_SCRAPE_ADDED_COUNT_KEY] === "number" ? r[LAST_SCRAPE_ADDED_COUNT_KEY] : 0;
+const rows = await getStorageRows();
+await downloadAllRowsCsv(rows);
+await showInfoDialog("取得完了", `履歴取得が完了しました（新規追加 ${addedCount} 件）`);
 });
 }
-
-function saveBackupSettings(settings) {
-return new Promise((resolve) => {
-chrome.storage.local.set({ [BACKUP_SETTINGS_KEY]: settings }, () => {
-chrome.runtime.sendMessage({ type: "setBackupSchedule", settings }, () => resolve());
-});
-});
-}
-
-function showOverlay(id) {
-document.getElementById(id).classList.remove("hidden");
-}
-function hideOverlay(id) {
-document.getElementById(id).classList.add("hidden");
-}
-
-async function openSettingsDialog() {
-const s = await getBackupSettings();
-document.getElementById("backupEnabled").checked = s.enabled;
-document.getElementById("backupInterval").value = String(s.intervalDays);
-showOverlay("settingsOverlay");
-}
-
-document.getElementById("settingsButton").addEventListener("click", openSettingsDialog);
-document.getElementById("settingsClose").addEventListener("click", () => hideOverlay("settingsOverlay"));
-document.getElementById("settingsOverlay").addEventListener("click", (e) => {
-if (e.target.id === "settingsOverlay") hideOverlay("settingsOverlay");
-});
-document.getElementById("settingsSave").addEventListener("click", async () => {
-const enabled = document.getElementById("backupEnabled").checked;
-const intervalDays = parseInt(document.getElementById("backupInterval").value, 10) || DEFAULT_INTERVAL_DAYS;
-await saveBackupSettings({ enabled, intervalDays });
-hideOverlay("settingsOverlay");
-showShareToast(enabled ? "バックアップ通知をONにしました。" : "バックアップ通知をOFFにしました。", 2500);
 });
 
-document.getElementById("firstRunAccept").addEventListener("click", async () => {
-const intervalDays = parseInt(document.getElementById("firstRunInterval").value, 10) || DEFAULT_INTERVAL_DAYS;
-await saveBackupSettings({ enabled: true, intervalDays });
-chrome.storage.local.set({ [BACKUP_FIRST_RUN_KEY]: true });
-hideOverlay("firstRunOverlay");
-showShareToast("バックアップ通知をONにしました。", 2500);
+async function syncScrapingButtonState() {
+await new Promise((resolve) => {
+chrome.storage.local.remove([PENDING_EXPORT_KEY, SCRAPE_SESSION_ADDED_KEY, SCRAPE_CANCEL_KEY], resolve);
 });
-document.getElementById("firstRunDecline").addEventListener("click", () => {
-chrome.storage.local.set({ [BACKUP_FIRST_RUN_KEY]: true });
-hideOverlay("firstRunOverlay");
-});
-
-function showFirstRunIfNeeded() {
-chrome.storage.local.get([BACKUP_FIRST_RUN_KEY], (r) => {
-if (r[BACKUP_FIRST_RUN_KEY]) return;
-showOverlay("firstRunOverlay");
-});
+setScrapingButtonState(false);
 }
 
 // レイアウト完了後に初回描画
 requestAnimationFrame(() => requestAnimationFrame(() => {
 refreshRows();
 showExportCalloutIfNeeded();
-showFirstRunIfNeeded();
+syncScrapingButtonState();
 }));

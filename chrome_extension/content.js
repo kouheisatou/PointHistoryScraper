@@ -1,5 +1,22 @@
 const STORAGE_KEY = "rakutenPointHistoryRows";
+const LAST_SCRAPE_DATE_KEY = "rakutenPointHistoryLastScrapeDate";
+const LAST_SCRAPE_ADDED_COUNT_KEY = "rakutenPointHistoryLastScrapeAddedCount";
+const SCRAPE_SESSION_ADDED_KEY = "rakutenPointHistorySessionAddedCount";
+const SCRAPE_CANCEL_KEY = "rakutenPointHistoryCancelScrape";
 const COLUMNS = ["date", "service", "title", "action", "point", "note"];
+
+function getTodayKey() {
+	const d = new Date();
+	return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function getSessionAddedCount() {
+	return new Promise((resolve) => {
+		chrome.storage.local.get([SCRAPE_SESSION_ADDED_KEY], (r) => {
+			resolve(typeof r[SCRAPE_SESSION_ADDED_KEY] === "number" ? r[SCRAPE_SESSION_ADDED_KEY] : 0);
+		});
+	});
+}
 
 function getStorageRows() {
 	return new Promise((resolve) => {
@@ -44,6 +61,10 @@ function extractRowsFromPage() {
 	return rows;
 }
 
+const currentUrlParams = new URL(window.location.href).searchParams;
+const isScrapeEnabled = currentUrlParams.get("scrape") === "1";
+const isFullScrape = currentUrlParams.get("full") === "1";
+
 function getNextPageUrl() {
 	const pagination = document.querySelector(".pagination");
 	if (!pagination || pagination.children.length === 0) return null;
@@ -53,6 +74,7 @@ function getNextPageUrl() {
 	if (!anchor || !anchor.href) return null;
 	const url = new URL(anchor.href);
 	url.searchParams.set("scrape", "1");
+	if (isFullScrape) url.searchParams.set("full", "1");
 	url.hash = "point_history";
 	return url.toString();
 }
@@ -62,22 +84,32 @@ async function collectHistory() {
 	const mergedRows = [...existingRows];
 	const keySet = new Set(existingRows.map(buildRowKey));
 	const currentPageRows = extractRowsFromPage();
-	let addedCount = 0;
+	let addedThisPage = 0;
+	let duplicateFound = false;
 
 	currentPageRows.forEach((row) => {
 		const key = buildRowKey(row);
-		if (keySet.has(key)) return;
+		if (keySet.has(key)) {
+			duplicateFound = true;
+			return;
+		}
 		keySet.add(key);
 		mergedRows.push(row);
-		addedCount += 1;
+		addedThisPage += 1;
 	});
 
-	if (addedCount > 0) {
+	if (addedThisPage > 0) {
 		await setStorageRows(mergedRows);
 	}
 
-	const nextPageUrl = getNextPageUrl();
+	const totalAdded = (await getSessionAddedCount()) + addedThisPage;
+
+	const shouldStop = duplicateFound && !isFullScrape;
+	const nextPageUrl = shouldStop ? null : getNextPageUrl();
 	if (nextPageUrl) {
+		await new Promise((resolve) => {
+			chrome.storage.local.set({ [SCRAPE_SESSION_ADDED_KEY]: totalAdded }, resolve);
+		});
 		setTimeout(() => {
 			window.open(nextPageUrl);
 			window.close();
@@ -85,11 +117,30 @@ async function collectHistory() {
 		return;
 	}
 
-	window.alert(`履歴取得が完了しました（新規追加 ${addedCount} 件）`);
+	await new Promise((resolve) => {
+		chrome.storage.local.remove([SCRAPE_SESSION_ADDED_KEY], resolve);
+	});
+	await new Promise((resolve) => {
+		chrome.storage.local.set({
+			[LAST_SCRAPE_ADDED_COUNT_KEY]: totalAdded,
+			[LAST_SCRAPE_DATE_KEY]: getTodayKey(),
+		}, resolve);
+	});
 	window.close();
 }
 
-const isScrapeEnabled = new URL(window.location.href).searchParams.get("scrape") === "1";
 if (isScrapeEnabled) {
-	collectHistory();
+	chrome.storage.local.get([SCRAPE_CANCEL_KEY], (r) => {
+		if (r[SCRAPE_CANCEL_KEY]) {
+			window.close();
+			return;
+		}
+		chrome.storage.onChanged.addListener((changes, area) => {
+			if (area !== "local") return;
+			if (changes[SCRAPE_CANCEL_KEY] && changes[SCRAPE_CANCEL_KEY].newValue) {
+				window.close();
+			}
+		});
+		collectHistory();
+	});
 }

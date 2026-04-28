@@ -10,11 +10,8 @@
 		"service_worker": "background.js"
 	},
 	"permissions": [
-		"tabs",
 		"storage",
-		"sidePanel",
-		"notifications",
-		"alarms"
+		"sidePanel"
 	],
 	"side_panel": {
 		"default_path": "sidepanel.html"

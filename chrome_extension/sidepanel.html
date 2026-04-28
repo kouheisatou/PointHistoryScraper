@@ -11,9 +11,6 @@
 <body>
 <header class="header">
 <h1>楽天ポイント履歴</h1>
-<button id="settingsButton" class="settings-btn" type="button" title="設定" aria-label="設定">
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19.14,12.94a7.49,7.49,0,0,0,0-1.88l2.03-1.58a.5.5,0,0,0,.12-.64l-1.92-3.32a.5.5,0,0,0-.61-.22l-2.39.96a7.21,7.21,0,0,0-1.62-.94l-.36-2.54A.5.5,0,0,0,13.9,2H10.1a.5.5,0,0,0-.5.42l-.36,2.54a7.21,7.21,0,0,0-1.62.94l-2.39-.96a.5.5,0,0,0-.61.22L2.7,8.48a.5.5,0,0,0,.12.64l2.03,1.58a7.49,7.49,0,0,0,0,1.88L2.82,14.16a.5.5,0,0,0-.12.64l1.92,3.32a.5.5,0,0,0,.61.22l2.39-.96a7.21,7.21,0,0,0,1.62.94l.36,2.54a.5.5,0,0,0,.5.42h3.8a.5.5,0,0,0,.5-.42l.36-2.54a7.21,7.21,0,0,0,1.62-.94l2.39.96a.5.5,0,0,0,.61-.22l1.92-3.32a.5.5,0,0,0-.12-.64ZM12,15.5A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z"/></svg>
-</button>
 </header>
 
 <nav class="tabs">
@@ -28,8 +25,12 @@
 <div id="tab-home" class="tab-content active">
 
 <section class="block actions">
-<button id="startScrapeButton" type="button">取得開始</button>
-<p class="hint">楽天ポイント履歴ページを開いてデータを取得します。中断する場合はタブを閉じてください。</p>
+<button id="dashboardExportButton" type="button">全期間CSVエクスポート</button>
+<label class="force-full">
+<input type="checkbox" id="forceFullScrape">
+<span>強制的に全期間取得する</span>
+</label>
+<p class="hint">最新の履歴を取得してCSVをダウンロードします。本日すでに取得済みの場合は取得をスキップします。</p>
 </section>
 
 <section class="block dashboard">
@@ -212,37 +213,6 @@
 
 <div id="chartTooltip" class="chart-tooltip hidden"></div>
 
-<div id="settingsOverlay" class="overlay hidden">
-<div class="dialog">
-<div class="dialog-header">
-<h2>設定</h2>
-<button id="settingsClose" class="dialog-close" type="button" aria-label="閉じる">×</button>
-</div>
-<div class="dialog-body">
-<div class="setting-row toggle-row">
-<span class="setting-label">バックアップ通知</span>
-<label class="switch">
-<input type="checkbox" id="backupEnabled">
-<span class="slider"></span>
-</label>
-</div>
-<div class="setting-row">
-<label for="backupInterval" class="setting-label">通知頻度</label>
-<select id="backupInterval" class="setting-select">
-<option value="7">毎週</option>
-<option value="14">2週間ごと</option>
-<option value="30">毎月</option>
-<option value="90">3ヶ月ごと</option>
-</select>
-</div>
-<p class="setting-hint">バックアップ通知をONにすると、設定した頻度で履歴のエクスポートを促す通知が届きます。</p>
-</div>
-<div class="dialog-footer">
-<button id="settingsSave" type="button" class="primary">保存</button>
-</div>
-</div>
-</div>
-
 <div id="infoOverlay" class="overlay hidden">
 <div class="dialog">
 <div class="dialog-header">
@@ -254,30 +224,6 @@
 </div>
 <div class="dialog-footer">
 <button id="infoOk" type="button" class="primary">OK</button>
-</div>
-</div>
-</div>
-
-<div id="firstRunOverlay" class="overlay hidden">
-<div class="dialog">
-<div class="dialog-header">
-<h2>バックアップ通知の設定</h2>
-</div>
-<div class="dialog-body">
-<p class="dialog-message">楽天ポイント履歴は古いデータが順次表示されなくなります。<br>定期的にエクスポートを促す通知をONにして、大切な履歴を取りこぼさないようにしましょう。</p>
-<div class="setting-row">
-<label for="firstRunInterval" class="setting-label">通知頻度</label>
-<select id="firstRunInterval" class="setting-select">
-<option value="7">毎週</option>
-<option value="14">2週間ごと</option>
-<option value="30" selected>毎月</option>
-<option value="90">3ヶ月ごと</option>
-</select>
-</div>
-</div>
-<div class="dialog-footer dialog-footer-spread">
-<button id="firstRunDecline" type="button">あとで</button>
-<button id="firstRunAccept" type="button" class="primary">通知をONにする</button>
 </div>
 </div>
 </div>
